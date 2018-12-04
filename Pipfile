@@ -16,9 +16,10 @@ matplotlib = "*"
 scipy = "*"
 unicodecsv = "*"
 pandas = "*"
-tensorflow = "*"
 seaborn = "*"
 sklearn = "*"
+imageio = "*"
+tensorflow = "*"
 
 
 [requires]

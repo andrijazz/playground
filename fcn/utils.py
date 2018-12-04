@@ -1,0 +1,138 @@
+# !/usr/bin/python
+
+import numpy as np
+import scipy.misc
+import tensorflow as tf
+import os
+import glob
+
+
+def resize_images(data_path, image_height, image_width):
+    images = glob.glob(os.path.join(data_path, '*.png'))
+    for image_file in images:
+        image = scipy.misc.imread(image_file)
+        # correct image sizes
+        if image.shape != (image_height, image_width, 3):
+            resized_image = scipy.misc.imresize(image, (image_height, image_width, 3))
+            scipy.misc.imsave(image_file, resized_image)
+
+
+def load_data(images_path, gt_images_path):
+    images = glob.glob(os.path.join(images_path, '*.png'))
+    data_set = []
+    for image in images:
+        filename = os.path.basename(image)
+        gt_image = gt_images_path + "/" + filename
+        if not os.path.exists(gt_image):
+            print("Missing label for instance {}".format(filename))
+            continue
+        data_set.append([image, gt_image])
+    return data_set
+
+
+def load_samples(m, images, image_height, image_width, image_downsize):
+    """Iterates through list of images and packs them into batch of size m"""
+
+    x_batch = np.empty([m, image_height // image_downsize, image_width // image_downsize, 3])
+    y_batch = np.empty([m, image_height // image_downsize, image_width // image_downsize, 3])
+    for i in range(m):
+        image_file = images[i][0]
+        gt_image_file = images[i][1]
+        image = scipy.misc.imread(image_file)
+        gt_image = scipy.misc.imread(gt_image_file)
+        x_batch[i, :, :, :] = image[0 : image_height // image_downsize, 0 : image_width // image_downsize, :]
+        y_batch[i, :, :, :] = gt_image[0 : image_height // image_downsize, 0 : image_width // image_downsize, :]
+    return x_batch, y_batch
+
+
+# initialize weights from a truncated normal distribution
+def weight_variable(shape, name):
+    initial = tf.contrib.layers.xavier_initializer()
+    return tf.get_variable(name, shape, initializer=initial)
+
+
+# initialize biases to constant values
+def bias_variable(shape, name):
+    initial = tf.constant(0.0, shape=shape)
+    return tf.get_variable(name, initializer=initial)
+
+
+# 2d convolution with padding
+# https://www.tensorflow.org/api_docs/python/tf/nn/conv2d
+def conv2d(x, W, s, padding):
+    return tf.nn.conv2d(x, W, s, padding=padding)
+
+
+# 2x2 max pooling with 2x2 stride and same padding
+def max_pool_2x2(name, x):
+    with tf.variable_scope(name):
+        return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+
+# convolution layer
+def conv_layer(name, shape, stride, relu, batch_norm, dropout, padding, x):
+    with tf.variable_scope(name):
+        W = weight_variable(shape, 'weights')
+        b = bias_variable([shape[3]], 'biases')
+        h_conv = conv2d(x, W, stride, padding) + b
+
+        if batch_norm:
+            h_conv = tf.contrib.layers.batch_norm(h_conv)
+        if relu:
+            h_conv = tf.nn.relu(h_conv)
+        if dropout:
+            # setting keep prob to 0.5 according to
+            # https://github.com/shelhamer/fcn.berkeleyvision.org/blob/1305c7378a9f0ab44b2c936f4d60e4687e3d8743/voc-fcn32s/net.py#L53
+            h_conv = tf.nn.dropout(h_conv, keep_prob=0.5)
+
+        return h_conv
+
+
+# bilinear tensor upsampling
+def upsample(x, s):
+    shape = tf.shape(x)
+    x_up = tf.image.resize_images(x, [shape[1] * s, shape[2] * s])
+    return x_up
+
+
+def deconv_layer(name, n_channels, kernel_size, stride, x):
+    strides = [1, stride, stride, 1]
+    with tf.variable_scope(name):
+        in_shape = tf.shape(x)
+
+        h = in_shape[1] * stride
+        w = in_shape[2] * stride
+        new_shape = [in_shape[0], h, w, n_channels]
+
+        output_shape = tf.stack(new_shape)
+
+        filter_shape = [kernel_size, kernel_size, n_channels, n_channels]
+
+        W = weight_variable(filter_shape, 'weights')
+        deconv = tf.nn.conv2d_transpose(x, W, output_shape, strides=strides, padding='SAME')
+    return deconv
+
+
+# transpose convolution layer
+# https://datascience.stackexchange.com/questions/6107/what-are-deconvolutional-layers
+# def deconv_layer(name, shape, stride, relu, batch_norm, x):
+#     with tf.variable_scope(name):
+#         W = weight_variable(shape, 'weights')
+#         # commenting out bias according to this
+#         # https://github.com/shelhamer/fcn.berkeleyvision.org/blob/1305c7378a9f0ab44b2c936f4d60e4687e3d8743/voc-fcn32s/net.py#L60
+#         # b = bias_variable([shape[2]], 'biases')
+#
+#         # transpose convolution requires shape input
+#         input_shape = tf.shape(x)
+#         deconv_shape = tf.stack([input_shape[0], input_shape[1] * 2, input_shape[2] * 2, shape[2]])
+#         # commenting out bias
+#         # h_deconv = tf.nn.conv2d_transpose(x, W, deconv_shape, [1, 2, 2, 1]) + b
+#         h_deconv = tf.nn.conv2d_transpose(x, W, deconv_shape, [1, 2, 2, 1])
+#
+#         if batch_norm:
+#             h_deconv = tf.contrib.layers.batch_norm(h_deconv)
+#
+#         if relu:
+#             h_deconv = tf.nn.relu(h_deconv)
+#
+#         return h_deconv
