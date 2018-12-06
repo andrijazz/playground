@@ -5,16 +5,7 @@ import scipy.misc
 import tensorflow as tf
 import os
 import glob
-
-
-def resize_images(data_path, image_height, image_width):
-    images = glob.glob(os.path.join(data_path, '*.png'))
-    for image_file in images:
-        image = scipy.misc.imread(image_file)
-        # correct image sizes
-        if image.shape != (image_height, image_width, 3):
-            resized_image = scipy.misc.imresize(image, (image_height, image_width, 3))
-            scipy.misc.imsave(image_file, resized_image)
+import sys
 
 
 def load_data(images_path, gt_images_path):
@@ -30,18 +21,62 @@ def load_data(images_path, gt_images_path):
     return data_set
 
 
-def load_samples(m, images, image_height, image_width, image_downsize):
-    """Iterates through list of images and packs them into batch of size m"""
+def calculate_min_image_size(images):
+    min_height = sys.maxsize
+    min_width = sys.maxsize
+    for [x, y] in images:
+        image = scipy.misc.imread(x)
+        gt_image = scipy.misc.imread(y)
 
-    x_batch = np.empty([m, image_height // image_downsize, image_width // image_downsize, 3])
-    y_batch = np.empty([m, image_height // image_downsize, image_width // image_downsize, 3])
+        if image.shape[0] < min_height:
+            min_height = image.shape[0]
+
+        if image.shape[1] < min_width:
+            min_width = image.shape[1]
+
+        if gt_image.shape[0] < min_height:
+            min_height = gt_image.shape[0]
+
+        if gt_image.shape[1] < min_width:
+            min_width = gt_image.shape[1]
+
+    return min_height, min_width
+
+
+def center_crop(img, h, w):
+    h_offset = (img.shape[0] - h) // 2
+    w_offset = (img.shape[1] - w) // 2
+    return img[h_offset : h_offset + h, w_offset : w_offset + w, :]
+
+
+def adjust_images(images, min_height, min_width):
+    """Crops images to min_height, min_width"""
+    for [x, y] in images:
+        image = scipy.misc.imread(x)
+        cropped_image = center_crop(image, min_height, min_width)
+        scipy.misc.imsave(x, cropped_image)
+        gt_image = scipy.misc.imread(y)
+        cropped_gt_image = center_crop(gt_image, min_height, min_width)
+        scipy.misc.imsave(y, cropped_gt_image)
+
+
+def load_samples(m, images, image_height, image_width, num_classes, probability_classes):
+    """Iterates through list of images and packs them into batch of size m"""
+    x_batch = np.empty([m, image_height, image_width, 3])
+    y_batch = np.empty([m, image_height, image_width, num_classes])
     for i in range(m):
         image_file = images[i][0]
         gt_image_file = images[i][1]
         image = scipy.misc.imread(image_file)
         gt_image = scipy.misc.imread(gt_image_file)
-        x_batch[i, :, :, :] = image[0 : image_height // image_downsize, 0 : image_width // image_downsize, :]
-        y_batch[i, :, :, :] = gt_image[0 : image_height // image_downsize, 0 : image_width // image_downsize, :]
+        x_batch[i, :, :, :] = image[0 : image_height, 0 : image_width, :]
+
+        probability_img = np.zeros([image_height, image_width, num_classes])
+        for c in probability_classes:
+            coords = np.where(gt_image == np.array(c))
+            probability_img[coords[0][::3], coords[1][::3], :] = probability_classes[c]
+        y_batch[i, :, :, :] = probability_img
+
     return x_batch, y_batch
 
 
@@ -95,6 +130,7 @@ def upsample(x, s):
     return x_up
 
 
+# https://datascience.stackexchange.com/questions/6107/what-are-deconvolutional-layers
 def deconv_layer(name, n_channels, kernel_size, stride, x):
     strides = [1, stride, stride, 1]
     with tf.variable_scope(name):
