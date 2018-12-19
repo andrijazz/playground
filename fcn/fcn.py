@@ -43,6 +43,7 @@ import utils
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.misc
+import os
 
 seed = 5
 np.random.seed(seed)
@@ -54,6 +55,9 @@ __email__ = "andrija.m.djurisic@gmail.com"
 
 tf.logging.set_verbosity(tf.logging.INFO)
 tf.logging.info('Things are good!')
+
+# CPU = 1, GPU = 0
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Setup
@@ -152,6 +156,7 @@ probability_classes = {
 if config.preprocessing:
     c_image_height, c_image_width = utils.calculate_min_image_size(train_file_list)
     utils.adjust_images(train_file_list, c_image_height, c_image_width)
+    exit("Preprocessing completed. Please re-run the script with preprocessing=false")
 
 num_classes = len(classes)      # 29
 
@@ -159,7 +164,14 @@ num_classes = len(classes)      # 29
 # Network definition
 # --------------------------------------------------------------------------------------------------------------------------------
 
-sess = tf.InteractiveSession()
+# sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
+
+session_config = tf.ConfigProto()
+#session_config.gpu_options.allow_growth = True
+#session_config.gpu_options.per_process_gpu_memory_fraction = 0.85
+# session_config.log_device_placement = True
+sess = tf.Session(config=session_config)
+
 with tf.variable_scope('input'):
     # placeholder for two RGB WxH images
     x = tf.placeholder(tf.float32, shape=[None, c_image_height, c_image_width, 3])     # [batch, in_height, in_width, in_channels]
@@ -234,7 +246,7 @@ batch_start = 0
 epoch = 0
 J = []
 l = 0
-step = 1
+step = 0
 
 # perform training
 while epoch < config.epochs:
@@ -259,8 +271,7 @@ while epoch < config.epochs:
     l = sess.run(loss, feed_dict={x: x_train_batch, y: y_train_batch})
     J.append(l)
     step += 1
-    epoch += 1
-    print("Epoch: {}, Loss: {}".format(epoch, l))
+    print("Step: {}, Loss: {}".format(step, l))
 
 # --------------------------------------------------------------------------------------------------------------------------------
 # Prediction
