@@ -4,3 +4,8 @@ __pycache__/
 *$py.class
 *.idea
 data/
+*.log
+*.meta
+*.index
+checkpoint
+*.data*

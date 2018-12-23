@@ -6,6 +6,35 @@ import tensorflow as tf
 import os
 import glob
 import sys
+import logging
+import datetime
+
+
+def setup_logger(logger_name):
+    log_path = "log"
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
+
+    log_file = "{}-{}".format(logger_name, datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.INFO)
+    log_formatter = logging.Formatter('%(asctime)s [%(levelname)s] - %(message)s', datefmt='%d-%b-%y-%H:%M:%S')
+
+    # Create handlers
+    c_handler = logging.StreamHandler()
+    f_handler = logging.FileHandler("{0}/{1}.log".format(log_path, log_file))
+    c_handler.setLevel(logging.DEBUG)
+    f_handler.setLevel(logging.DEBUG)
+
+    # Add formatter to handlers
+    c_handler.setFormatter(log_formatter)
+    f_handler.setFormatter(log_formatter)
+
+    # Add handlers to the logger
+    logger.addHandler(c_handler)
+    logger.addHandler(f_handler)
+
+    return logger
 
 
 def load_data(images_path, gt_images_path):
@@ -60,24 +89,56 @@ def adjust_images(images, min_height, min_width):
         scipy.misc.imsave(y, cropped_gt_image)
 
 
-def load_samples(m, images, image_height, image_width, num_classes, probability_classes):
+def load_samples(m, images, image_height, image_width):
     """Iterates through list of images and packs them into batch of size m"""
     x_batch = np.empty([m, image_height, image_width, 3])
-    y_batch = np.empty([m, image_height, image_width, num_classes])
+    y_batch = np.empty([m, image_height, image_width, 3])
     for i in range(m):
         image_file = images[i][0]
         gt_image_file = images[i][1]
         image = scipy.misc.imread(image_file)
         gt_image = scipy.misc.imread(gt_image_file)
         x_batch[i, :, :, :] = image[0 : image_height, 0 : image_width, :]
-
-        probability_img = np.zeros([image_height, image_width, num_classes])
-        for c in probability_classes:
-            coords = np.where(gt_image == np.array(c))
-            probability_img[coords[0][::3], coords[1][::3], :] = probability_classes[c]
-        y_batch[i, :, :, :] = probability_img
-
+        y_batch[i, :, :, :] = gt_image
     return x_batch, y_batch
+
+
+def load_samples_prob(m, images, image_height, image_width, probability_classes):
+    """Iterates through list of images and packs them into batch of size m"""
+    x_batch = np.empty([m, image_height, image_width, 3])
+    num_classes = len(probability_classes)
+    y_prob_batch = np.empty([m, image_height, image_width, num_classes])
+    for i in range(m):
+        image_file = images[i][0]
+        gt_image_file = images[i][1]
+        image = scipy.misc.imread(image_file)
+        gt_image = scipy.misc.imread(gt_image_file)
+        x_batch[i, :, :, :] = image[0 : image_height, 0 : image_width, :]
+        y_prob_batch[i, :, :, :] = image2cprob(gt_image, probability_classes)
+    return x_batch, y_prob_batch
+
+
+def load_samples_idx(m, images, image_height, image_width, idx_classes):
+    """Iterates through list of images and packs them into batch of size m"""
+    x_batch = np.empty([m, image_height, image_width, 3])
+    y_idx_batch = np.empty([m, image_height, image_width])
+    for i in range(m):
+        image_file = images[i][0]
+        gt_image_file = images[i][1]
+        image = scipy.misc.imread(image_file)
+        gt_image = scipy.misc.imread(gt_image_file)
+        x_batch[i, :, :, :] = image[0 : image_height, 0 : image_width, :]
+        y_idx_batch[i, :, :] = image2cidx(gt_image, idx_classes)
+    return x_batch, y_idx_batch
+
+
+def crop_tensor(x, h, w):
+    # cropping the output image to original size
+    # https://github.com/shelhamer/fcn.berkeleyvision.org/edit/master/README.md#L72
+    # https://github.com/shelhamer/fcn.berkeleyvision.org/blob/1305c7378a9f0ab44b2c936f4d60e4687e3d8743/voc-fcn32s/net.py#L62
+    offset_height = (tf.shape(x)[1] - h) // 2
+    offset_width = (tf.shape(x)[2] - w) // 2
+    return tf.image.crop_to_bounding_box(x, offset_height, offset_width, h, w)
 
 
 # initialize weights from a truncated normal distribution
@@ -145,9 +206,39 @@ def deconv_layer(name, n_channels, kernel_size, stride, x):
         filter_shape = [kernel_size, kernel_size, n_channels, n_channels]
 
         W = weight_variable(filter_shape, 'weights')
-        deconv = tf.nn.conv2d_transpose(x, W, output_shape, strides=strides, padding='SAME')
+        deconv = tf.nn.conv2d_transpose(x, W, output_shape, strides=strides, padding='SAME', name=name)
     return deconv
 
+
+def image2cidx(img, idx_classes):
+    image_height = img.shape[0]
+    image_width = img.shape[1]
+    cidx_img = np.zeros([image_height, image_width])
+    for c in idx_classes:
+        coords = np.where(img == np.array(c))
+        cidx_img[coords[0][::3], coords[1][::3]] = idx_classes[c]
+    return cidx_img
+
+
+def image2cprob(img, probability_classes):
+    image_height = img.shape[0]
+    image_width = img.shape[1]
+    num_classes = len(probability_classes)
+    cprob_img = np.zeros([image_height, image_width, num_classes])
+    for c in probability_classes:
+        coords = np.where(img == np.array(c))
+        cprob_img[coords[0][::3], coords[1][::3], :] = probability_classes[c]
+    return cprob_img
+
+
+def save_images(images, names, result_path):
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
+
+    m = images.shape[0]
+    for i in range(m):
+        basename = os.path.basename(names[i][0])
+        scipy.misc.imsave(result_path + "/" + basename, images[i])
 
 # transpose convolution layer
 # https://datascience.stackexchange.com/questions/6107/what-are-deconvolutional-layers

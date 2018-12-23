@@ -4,7 +4,6 @@
 
 TODO:
 * metrics (per pixel acc, jaccard)
-* logger
 * tensor board
 * fcn16
 * fcn8
@@ -36,48 +35,48 @@ Q
 * how to debug tf vars?
 
 """
-
 import argparse
 import tensorflow as tf
 import utils
-import matplotlib.pyplot as plt
-import numpy as np
-import scipy.misc
 import os
+from common import *
+
+
+__author__ = "andrijazz"
+__email__ = "andrija.m.djurisic@gmail.com"
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Setup
+# ---------------------------------------------------------------------------------------------------------------------
+logger = utils.setup_logger("fcn")
+logger.info('Things are good!')
 
 seed = 5
 np.random.seed(seed)
 tf.set_random_seed(seed)
 
-__author__ = "andrijazz"
-__email__ = "andrija.m.djurisic@gmail.com"
-
-
-tf.logging.set_verbosity(tf.logging.INFO)
-tf.logging.info('Things are good!')
-
-# CPU = 1, GPU = 0
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-# ---------------------------------------------------------------------------------------------------------------------
-# Setup
-# ---------------------------------------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--preprocessing', help='Preprocessing. Default is false.', type=bool, default=False)
 parser.add_argument('--epochs', help='Number of training epochs. Default is 200.', type=int, default=10)
 parser.add_argument('--model', help="""3 models are supported at the moment fcn32, fcn16 and fcn8. Default is fcn32.""", default="fcn32")
 parser.add_argument('--batch_size', help='Size of a batch. Default is 10.', type=int, default=5)
 parser.add_argument('--learning_rate', help='Learning rate parameter. Default is 0.001.', type=float, default=float(0.001))
+parser.add_argument('--split', help='Split dataset. Default is split-150', type=str, default="split-150")
+parser.add_argument('--gpu', help='Run on GPU. Default is False', type=bool, default=False)
 
 config = parser.parse_args()
-print("Configuration = {}".format(config))
+logger.info("Configuration = {}".format(config))
 
+if config.gpu:
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+else:
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Load data
 # ---------------------------------------------------------------------------------------------------------------------
 
-train_data_path = '../data/data_semantics/training'
+train_data_path = "../data/" + config.split + "/training"
 images_path = train_data_path + "/image_2"
 gt_images_path = train_data_path + '/semantic_rgb'
 
@@ -87,94 +86,22 @@ train_file_list = utils.load_data(images_path, gt_images_path)
 # ---------------------------------------------------------------------------------------------------------------------
 # Pre-processing
 # ---------------------------------------------------------------------------------------------------------------------
-c_image_height = 370
-c_image_width = 1224
-classes = np.array(
-    [[  0,   0,   0],
-       [  0,   0,  70],
-       [  0,   0,  90],
-       [  0,   0, 110],
-       [  0,   0, 142],
-       [  0,   0, 230],
-       [  0,  60, 100],
-       [  0,  80, 100],
-       [ 70,  70,  70],
-       [ 70, 130, 180],
-       [ 81,   0,  81],
-       [102, 102, 156],
-       [107, 142,  35],
-       [111,  74,   0],
-       [119,  11,  32],
-       [128,  64, 128],
-       [150, 100, 100],
-       [150, 120,  90],
-       [152, 251, 152],
-       [153, 153, 153],
-       [180, 165, 180],
-       [190, 153, 153],
-       [220,  20,  60],
-       [220, 220,   0],
-       [230, 150, 140],
-       [244,  35, 232],
-       [250, 170,  30],
-       [250, 170, 160],
-       [255,   0,   0]])
-
-probability_classes = {
-       tuple([  0,   0,   0]): np.array([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([  0,   0,  70]): np.array([0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([  0,   0,  90]): np.array([0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([  0,   0, 110]): np.array([0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([  0,   0, 142]): np.array([0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([  0,   0, 230]): np.array([0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([  0,  60, 100]): np.array([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([  0,  80, 100]): np.array([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([ 70,  70,  70]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([ 70, 130, 180]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([ 81,   0,  81]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([102, 102, 156]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([107, 142,  35]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([111,  74,   0]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([119,  11,  32]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([128,  64, 128]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([150, 100, 100]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([150, 120,  90]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([152, 251, 152]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([153, 153, 153]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([180, 165, 180]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([190, 153, 153]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]),
-       tuple([220,  20,  60]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]),
-       tuple([220, 220,   0]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0]),
-       tuple([230, 150, 140]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]),
-       tuple([244,  35, 232]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]),
-       tuple([250, 170,  30]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]),
-       tuple([250, 170, 160]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]),
-       tuple([255,   0,   0]): np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
-}
-
 
 if config.preprocessing:
     c_image_height, c_image_width = utils.calculate_min_image_size(train_file_list)
     utils.adjust_images(train_file_list, c_image_height, c_image_width)
     exit("Preprocessing completed. Please re-run the script with preprocessing=false")
 
-num_classes = len(classes)      # 29
-
-# --------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 # Network definition
-# --------------------------------------------------------------------------------------------------------------------------------
-
-# sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
+# ----------------------------------------------------------------------------------------------------------------------
 
 session_config = tf.ConfigProto()
-#session_config.gpu_options.allow_growth = True
-#session_config.gpu_options.per_process_gpu_memory_fraction = 0.85
-# session_config.log_device_placement = True
 sess = tf.Session(config=session_config)
 
 with tf.variable_scope('input'):
     # placeholder for two RGB WxH images
-    x = tf.placeholder(tf.float32, shape=[None, c_image_height, c_image_width, 3])     # [batch, in_height, in_width, in_channels]
+    x = tf.placeholder(tf.float32, shape=[None, c_image_height, c_image_width, 3], name="x")     # [batch, in_height, in_width, in_channels]
 
     # padding input by 100
     # https://github.com/shelhamer/fcn.berkeleyvision.org/edit/master/README.md#L72
@@ -213,9 +140,11 @@ h_upscore     = utils.deconv_layer( 'upscore', num_classes, 64, 32, h_score_fr) 
 # cropping the output image to original size
 # https://github.com/shelhamer/fcn.berkeleyvision.org/edit/master/README.md#L72
 # https://github.com/shelhamer/fcn.berkeleyvision.org/blob/1305c7378a9f0ab44b2c936f4d60e4687e3d8743/voc-fcn32s/net.py#L62
-offset_height = (tf.shape(h_upscore)[1] - c_image_height) // 2
-offset_width = (tf.shape(h_upscore)[2] - c_image_width) // 2
-h_crop        = tf.image.crop_to_bounding_box(h_upscore, offset_height, offset_width, c_image_height, c_image_width)
+# offset_height = (tf.shape(h_upscore)[1] - c_image_height) // 2
+# offset_width = (tf.shape(h_upscore)[2] - c_image_width) // 2
+# h_crop        = tf.image.crop_to_bounding_box(h_upscore, offset_height, offset_width, c_image_height, c_image_width)
+
+h_crop = utils.crop_tensor(h_upscore, c_image_height, c_image_width)
 
 with tf.variable_scope('loss'):
     # Reshape 4D tensors to 2D, each row represents a pixel, each column a class
@@ -232,10 +161,9 @@ with tf.variable_scope('loss'):
 opt = tf.train.AdamOptimizer(learning_rate=config.learning_rate, name="fcn_opt")
 goal = opt.minimize(loss, name="fcn_goal")
 
-
-# --------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 # Execution
-# --------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 sess.run(tf.global_variables_initializer())
 
 # randomly shuffle the training set
@@ -245,7 +173,7 @@ np.random.shuffle(train_file_list)
 batch_start = 0
 epoch = 0
 J = []
-l = 0
+curr_loss = 0
 step = 0
 
 # perform training
@@ -258,45 +186,24 @@ while epoch < config.epochs:
     batch_start += config.batch_size
 
     # load batch into tensors
-    x_train_batch, y_train_batch = utils.load_samples(m, train_file_batch, c_image_height, c_image_width, num_classes, probability_classes)
+    x_batch, y_batch_prob = utils.load_samples_prob(m, train_file_batch, c_image_height, c_image_width, probability_classes)
     # reshuffle the train set if end of epoch reached
     if batch_start >= len(train_file_list):
+        logger.info("Epoch: {}, Loss: {}".format(epoch, curr_loss))
+        J.append(curr_loss)
         np.random.shuffle(train_file_list)
         batch_start = 0
         epoch += 1
-        print("Epoch: {}, Loss: {}".format(epoch, l))
 
     # run training step
-    sess.run(goal, feed_dict={x: x_train_batch, y: y_train_batch})
-    l = sess.run(loss, feed_dict={x: x_train_batch, y: y_train_batch})
-    J.append(l)
+    sess.run(goal, feed_dict={x: x_batch, y: y_batch_prob})
+    curr_loss = sess.run(loss, feed_dict={x: x_batch, y: y_batch_prob})
     step += 1
-    print("Step: {}, Loss: {}".format(step, l))
+    logger.debug("Step: {}, Loss: {}".format(step, curr_loss))
 
-# --------------------------------------------------------------------------------------------------------------------------------
-# Prediction
-# --------------------------------------------------------------------------------------------------------------------------------
 
-# test image
-img_x = scipy.misc.imread('../data/data_semantics/training/image_2/000000_10.png')
-test_x = np.empty([1, c_image_height, c_image_width, 3])
-test_x[0, :, :, :] = img_x
-
-img_y = scipy.misc.imread('../data/data_semantics/training/semantic_rgb/000000_10.png')
-
-n_out = sess.run(h_crop, feed_dict={x: test_x})
-
-# prediction - argmax returns class index for each pixel
-out = np.argmax(n_out, axis=3)
-result = classes[out[0, :, :]]
-
-# plot
-plt.imshow(img_x)
-plt.show()
-
-plt.imshow(img_y)
-plt.show()
-
-scipy.misc.imsave('../data/data_semantics/000000_10_result.png', result)
-plt.imshow(result)
-plt.show()
+# ----------------------------------------------------------------------------------------------------------------------
+# Save model
+# ----------------------------------------------------------------------------------------------------------------------
+saver = tf.train.Saver()
+saver.save(sess, "./fcn")
