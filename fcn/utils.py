@@ -165,7 +165,7 @@ def max_pool_2x2(name, x):
         return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 
-# convolution layer
+# convolution layer (shape = [filter_height, filter_width, in_channels, out_channels])
 def conv_layer(name, shape, stride, relu, batch_norm, dropout, padding, x):
     with tf.variable_scope(name):
         W = weight_variable(shape, 'weights')

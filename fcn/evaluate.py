@@ -38,7 +38,7 @@ np.random.seed(seed)
 tf.set_random_seed(seed)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--batch_size', help='Size of a batch. Default is 5.', type=int, default=2)
+parser.add_argument('--batch_size', help='Size of a batch. Default is 5.', type=int, default=5)
 parser.add_argument('--split', help='Split dataset. Default is split-150', type=str, default="split-150")
 parser.add_argument('--gpu', help='Run on GPU. Default is False', type=bool, default=False)
 
@@ -73,7 +73,7 @@ saver.restore(sess, tf.train.latest_checkpoint('./'))
 # Now, let's access and create placeholders variables
 graph = tf.get_default_graph()
 x = graph.get_tensor_by_name("input/x:0")
-upscore = graph.get_tensor_by_name("upscore/upscore:0")
+upscore = graph.get_tensor_by_name("output/output:0")
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Execution

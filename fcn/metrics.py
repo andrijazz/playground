@@ -33,7 +33,11 @@ def jaccard(p_batch_idx, y_batch_idx):
 
             intersection = multidim_intersect(p_coords_reshaped, gt_coords_reshaped)
             union = multidim_union(p_coords_reshaped, gt_coords_reshaped)
-            jacc[cidx] = intersection.shape[0] / union.shape[0]
+
+            if union.shape[0] == 0:
+                jacc[cidx] = 0
+            else:
+                jacc[cidx] = intersection.shape[0] / union.shape[0]
 
         result.append(jacc)
     return result

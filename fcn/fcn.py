@@ -57,9 +57,11 @@ tf.set_random_seed(seed)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--preprocessing', help='Preprocessing. Default is false.', type=bool, default=False)
-parser.add_argument('--epochs', help='Number of training epochs. Default is 200.', type=int, default=10)
-parser.add_argument('--model', help="""3 models are supported at the moment fcn32, fcn16 and fcn8. Default is fcn32.""", default="fcn32")
-parser.add_argument('--batch_size', help='Size of a batch. Default is 10.', type=int, default=5)
+parser.add_argument('--epochs', help='Number of training epochs. Default is 100.', type=int, default=100)
+parser.add_argument('--model',
+                    help="""3 models are supported at the moment fcn32, fcn16 and fcn8. Default is fcn32.""",
+                    type=str, default="fcn32")
+parser.add_argument('--batch_size', help='Size of a batch. Default is 5.', type=int, default=5)
 parser.add_argument('--learning_rate', help='Learning rate parameter. Default is 0.001.', type=float, default=float(0.001))
 parser.add_argument('--split', help='Split dataset. Default is split-150', type=str, default="split-150")
 parser.add_argument('--gpu', help='Run on GPU. Default is False', type=bool, default=False)
@@ -135,7 +137,39 @@ h_pool5     = utils.max_pool_2x2(   'pool5',    h_conv5_3)
 h_fc6         = utils.conv_layer(   'fc6',        [7, 7, 512, 4096],       [1, 1, 1, 1],   True,  False, True, "VALID", h_pool5)
 h_fc7         = utils.conv_layer(   'fc7',        [1, 1, 4096, 4096],      [1, 1, 1, 1],   True,  False, True, "VALID", h_fc6)
 h_score_fr    = utils.conv_layer(   'score_fr',   [1, 1, 4096, num_classes], [1, 1, 1, 1], False,  False, False, "VALID", h_fc7)
-h_upscore     = utils.deconv_layer( 'upscore', num_classes, 64, 32, h_score_fr)     # upscore_shape = (m, 384, 1248, num_classes)
+
+output = None
+if config.model == "fcn32":
+    # h_upscore - upscore_shape = (m, 384, 1248, num_classes)
+    output = utils.deconv_layer('output', num_classes, 64, 32, h_score_fr)
+elif config.model == "fcn16":
+    # upscore_shape = (m, 384, 1248, num_classes)
+    h_upscore2 = utils.deconv_layer('upscore2', num_classes, 4, 2, h_score_fr)
+
+    # pool4
+    h_score_pool4 = utils.conv_layer('score_pool4', [1, 1, 512, num_classes], [1, 1, 1, 1],   True,  False, False, "SAME", h_pool4)
+    h_score_pool4_cropped = utils.crop_tensor(h_score_pool4, tf.shape(h_upscore2)[1], tf.shape(h_upscore2)[2])
+    h_fuse_pool4 = h_upscore2 + h_score_pool4_cropped
+    # h_upscore16
+    output = utils.deconv_layer('output', num_classes, 32, 16, h_fuse_pool4)
+elif config.model == "fcn8":
+    # upscore_shape = (m, 384, 1248, num_classes)
+    h_upscore2 = utils.deconv_layer('upscore2', num_classes, 4, 2, h_score_fr)
+
+    # pool4
+    h_score_pool4 = utils.conv_layer('score_pool4', [1, 1, 512, num_classes], [1, 1, 1, 1],   True,  False, False, "SAME", h_pool4)
+    h_score_pool4_cropped = utils.crop_tensor(h_score_pool4, tf.shape(h_upscore2)[1], tf.shape(h_upscore2)[2])
+    h_fuse_pool4 = h_upscore2 + h_score_pool4_cropped
+    h_upscore_pool4 = utils.deconv_layer('upscore_pool4', num_classes, 4, 2, h_fuse_pool4)
+
+    # pool3
+    h_score_pool3 = utils.conv_layer('score_pool3', [1, 1, 256, num_classes], [1, 1, 1, 1],   True,  False, False, "SAME", h_pool3)
+    h_score_pool3_cropped = utils.crop_tensor(h_score_pool3, tf.shape(h_upscore_pool4)[1], tf.shape(h_upscore_pool4)[2])
+    h_fuse_pool3 = h_upscore_pool4 + h_score_pool3_cropped
+    # h_upscore8
+    output = utils.deconv_layer('output', num_classes, 16, 8, h_fuse_pool3)
+else:
+    exit("Unknown model!")
 
 # cropping the output image to original size
 # https://github.com/shelhamer/fcn.berkeleyvision.org/edit/master/README.md#L72
@@ -143,8 +177,7 @@ h_upscore     = utils.deconv_layer( 'upscore', num_classes, 64, 32, h_score_fr) 
 # offset_height = (tf.shape(h_upscore)[1] - c_image_height) // 2
 # offset_width = (tf.shape(h_upscore)[2] - c_image_width) // 2
 # h_crop        = tf.image.crop_to_bounding_box(h_upscore, offset_height, offset_width, c_image_height, c_image_width)
-
-h_crop = utils.crop_tensor(h_upscore, c_image_height, c_image_width)
+h_crop = utils.crop_tensor(output, c_image_height, c_image_width)
 
 with tf.variable_scope('loss'):
     # Reshape 4D tensors to 2D, each row represents a pixel, each column a class
@@ -206,4 +239,4 @@ while epoch < config.epochs:
 # Save model
 # ----------------------------------------------------------------------------------------------------------------------
 saver = tf.train.Saver()
-saver.save(sess, "./fcn")
+saver.save(sess, "./{}".format(config.model))
