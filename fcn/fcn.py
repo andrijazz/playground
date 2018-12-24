@@ -3,10 +3,7 @@
 """
 
 TODO:
-* metrics (per pixel acc, jaccard)
 * tensor board
-* fcn16
-* fcn8
 * apply transfer learning (pretrained vgg-16)
 * try out classification for vgg-16 on some data set
 * try cityscapes data set
@@ -84,6 +81,11 @@ gt_images_path = train_data_path + '/semantic_rgb'
 
 # load data
 train_file_list = utils.load_data(images_path, gt_images_path)
+
+# save model path
+model_path = "./" + config.model
+if not os.path.exists(model_path):
+    os.makedirs(model_path)
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Pre-processing
@@ -239,4 +241,4 @@ while epoch < config.epochs:
 # Save model
 # ----------------------------------------------------------------------------------------------------------------------
 saver = tf.train.Saver()
-saver.save(sess, "./{}".format(config.model))
+saver.save(sess, model_path + "/fcn")

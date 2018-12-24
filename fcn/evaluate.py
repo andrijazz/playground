@@ -41,6 +41,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', help='Size of a batch. Default is 5.', type=int, default=5)
 parser.add_argument('--split', help='Split dataset. Default is split-150', type=str, default="split-150")
 parser.add_argument('--gpu', help='Run on GPU. Default is False', type=bool, default=False)
+parser.add_argument('--model',
+                    help="""3 models are supported at the moment fcn32, fcn16 and fcn8. Default is fcn32.""",
+                    type=str, default="fcn32")
 
 config = parser.parse_args()
 logger.info("Configuration = {}".format(config))
@@ -62,13 +65,15 @@ gt_images_path = test_data_path + '/semantic_rgb'
 test_file_list = utils.load_data(images_path, gt_images_path)
 
 
+# saved model path
+model_path = "./" + config.model
 # --------------------------------------------------------------------------------------------------------------------------------
 # Restore model
 # --------------------------------------------------------------------------------------------------------------------------------
 session_config = tf.ConfigProto()
 sess = tf.Session(config=session_config)
-saver = tf.train.import_meta_graph('./fcn.meta')
-saver.restore(sess, tf.train.latest_checkpoint('./'))
+saver = tf.train.import_meta_graph(model_path + "/fcn.meta")
+saver.restore(sess, tf.train.latest_checkpoint(model_path))
 
 # Now, let's access and create placeholders variables
 graph = tf.get_default_graph()
