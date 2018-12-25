@@ -69,7 +69,7 @@ test_file_list = utils.load_data(images_path, gt_images_path)
 session_config = tf.ConfigProto()
 sess = tf.Session(config=session_config)
 saver = tf.train.import_meta_graph(MODELS_DIR + "/" + config.model + "/fcn.meta")
-saver.restore(sess, tf.train.latest_checkpoint(MODELS_DIR + "/" + config.model + "/fcn.meta"))
+saver.restore(sess, tf.train.latest_checkpoint(MODELS_DIR + "/" + config.model))
 
 # Now, let's access and create placeholders variables
 graph = tf.get_default_graph()
