@@ -45,7 +45,7 @@ __email__ = "andrija.m.djurisic@gmail.com"
 # ---------------------------------------------------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------------------------------------------------
-logger = utils.setup_logger("fcn")
+logger = utils.setup_logger("fcn", LOG_DIR)
 logger.info('Things are good!')
 
 seed = 5
@@ -75,17 +75,12 @@ else:
 # Load data
 # ---------------------------------------------------------------------------------------------------------------------
 
-train_data_path = "../data/" + config.split + "/training"
+train_data_path = DATA_DIR + "/" + config.split + "/training"
 images_path = train_data_path + "/image_2"
 gt_images_path = train_data_path + '/semantic_rgb'
 
 # load data
 train_file_list = utils.load_data(images_path, gt_images_path)
-
-# save model path
-model_path = "./" + config.model
-if not os.path.exists(model_path):
-    os.makedirs(model_path)
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Pre-processing
@@ -240,5 +235,11 @@ while epoch < config.epochs:
 # ----------------------------------------------------------------------------------------------------------------------
 # Save model
 # ----------------------------------------------------------------------------------------------------------------------
+
+model_path = MODELS_DIR + "/" + config.model
+if not os.path.exists(model_path):
+    os.makedirs(model_path)
+
+
 saver = tf.train.Saver()
-saver.save(sess, model_path + "/fcn")
+saver.save(sess, model_path + "/" + "fcn")

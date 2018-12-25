@@ -98,3 +98,7 @@ idx_classes = {
 }
 
 num_classes = 29
+DATA_DIR = "../data"
+MODELS_DIR = "../models"
+RESULTS_DIR = "../results"
+LOG_DIR = "../log"

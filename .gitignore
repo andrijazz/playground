@@ -4,6 +4,10 @@ __pycache__/
 *$py.class
 *.idea
 data/
+log/
+models/
+results/
+
 *.log
 *.meta
 *.index

@@ -30,7 +30,7 @@ def forward(samples):
 # ---------------------------------------------------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------------------------------------------------
-logger = utils.setup_logger("fcneval")
+logger = utils.setup_logger("fcneval", LOG_DIR)
 logger.info('Things are good!')
 
 seed = 5
@@ -56,24 +56,20 @@ else:
 # ---------------------------------------------------------------------------------------------------------------------
 # Load data
 # ---------------------------------------------------------------------------------------------------------------------
-test_data_path = "../data/" + config.split + "/testing"
-results_path = test_data_path + "/results"
+test_data_path = DATA_DIR + "/" + config.split + "/testing"
 images_path = test_data_path + "/image_2"
 gt_images_path = test_data_path + '/semantic_rgb'
 
 # load data
 test_file_list = utils.load_data(images_path, gt_images_path)
 
-
-# saved model path
-model_path = "./" + config.model
 # --------------------------------------------------------------------------------------------------------------------------------
 # Restore model
 # --------------------------------------------------------------------------------------------------------------------------------
 session_config = tf.ConfigProto()
 sess = tf.Session(config=session_config)
-saver = tf.train.import_meta_graph(model_path + "/fcn.meta")
-saver.restore(sess, tf.train.latest_checkpoint(model_path))
+saver = tf.train.import_meta_graph(MODELS_DIR + "/" + config.model + "/fcn.meta")
+saver.restore(sess, tf.train.latest_checkpoint(MODELS_DIR + "/" + config.model + "/fcn.meta"))
 
 # Now, let's access and create placeholders variables
 graph = tf.get_default_graph()
@@ -87,6 +83,12 @@ batch_start = 0
 per_pixel_acc = []
 jaccard = []
 i = 0
+
+# results path
+results_path = RESULTS_DIR + "/" + config.model
+if not os.path.exists(results_path):
+    os.makedirs(results_path)
+
 while batch_start < len(test_file_list):
     # get next mini-batch from training set
     batch_end = min(batch_start + config.batch_size, len(test_file_list))

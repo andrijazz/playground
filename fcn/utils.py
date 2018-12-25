@@ -10,8 +10,7 @@ import logging
 import datetime
 
 
-def setup_logger(logger_name):
-    log_path = "log"
+def setup_logger(logger_name, log_path):
     if not os.path.exists(log_path):
         os.makedirs(log_path)
 
