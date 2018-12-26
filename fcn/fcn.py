@@ -60,6 +60,7 @@ parser.add_argument('--model',
                     type=str, default="fcn32")
 parser.add_argument('--batch_size', help='Size of a batch. Default is 5.', type=int, default=5)
 parser.add_argument('--learning_rate', help='Learning rate parameter. Default is 0.001.', type=float, default=float(0.001))
+parser.add_argument('--keep_prob', help='Dropout keep prob. Default is 0.5.', type=float, default=float(0.5))
 parser.add_argument('--split', help='Split dataset. Default is split-150', type=str, default="split-150")
 parser.add_argument('--gpu', help='Run on GPU. Default is False', type=bool, default=False)
 
@@ -131,8 +132,8 @@ h_pool5     = utils.max_pool_2x2(   'pool5',    h_conv5_3)
 
 # end of vgg-16 (vgg-16 would now have 2 fully connected layers with 4096 units each and then softmax)
 # ... continuing with fc layers
-h_fc6         = utils.conv_layer(   'fc6',        [7, 7, 512, 4096],       [1, 1, 1, 1],   True,  False, True, "VALID", h_pool5)
-h_fc7         = utils.conv_layer(   'fc7',        [1, 1, 4096, 4096],      [1, 1, 1, 1],   True,  False, True, "VALID", h_fc6)
+h_fc6         = utils.conv_layer(   'fc6',        [7, 7, 512, 4096],       [1, 1, 1, 1],   True,  False, True, "VALID", h_pool5, config.keep_prob)
+h_fc7         = utils.conv_layer(   'fc7',        [1, 1, 4096, 4096],      [1, 1, 1, 1],   True,  False, True, "VALID", h_fc6, config.keep_prob)
 h_score_fr    = utils.conv_layer(   'score_fr',   [1, 1, 4096, num_classes], [1, 1, 1, 1], False,  False, False, "VALID", h_fc7)
 
 output = None

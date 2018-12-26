@@ -165,7 +165,7 @@ def max_pool_2x2(name, x):
 
 
 # convolution layer (shape = [filter_height, filter_width, in_channels, out_channels])
-def conv_layer(name, shape, stride, relu, batch_norm, dropout, padding, x):
+def conv_layer(name, shape, stride, relu, batch_norm, dropout, padding, x, keep_prob=0.5):
     with tf.variable_scope(name):
         W = weight_variable(shape, 'weights')
         b = bias_variable([shape[3]], 'biases')
@@ -178,7 +178,7 @@ def conv_layer(name, shape, stride, relu, batch_norm, dropout, padding, x):
         if dropout:
             # setting keep prob to 0.5 according to
             # https://github.com/shelhamer/fcn.berkeleyvision.org/blob/1305c7378a9f0ab44b2c936f4d60e4687e3d8743/voc-fcn32s/net.py#L53
-            h_conv = tf.nn.dropout(h_conv, keep_prob=0.5)
+            h_conv = tf.nn.dropout(h_conv, keep_prob=keep_prob)
 
         return h_conv
 
@@ -205,7 +205,7 @@ def deconv_layer(name, n_channels, kernel_size, stride, x):
         filter_shape = [kernel_size, kernel_size, n_channels, n_channels]
 
         W = weight_variable(filter_shape, 'weights')
-        deconv = tf.nn.conv2d_transpose(x, W, output_shape, strides=strides, padding='SAME', name=name)
+        deconv = tf.nn.conv2d_transpose(x, W, output_shape, strides=strides, padding='VALID', name=name)
     return deconv
 
 
