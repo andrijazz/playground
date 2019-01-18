@@ -10,11 +10,21 @@ import logging
 import datetime
 
 
+def make_hparam_string(config):
+    separator = "_"
+    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    config_list = [now, config.model, str(config.epochs),
+                   str(config.batch_size), str(config.learning_rate),
+                   str(config.keep_prob)]
+    hparams = separator.join(config_list)
+    return hparams
+
+
 def setup_logger(logger_name, log_path):
     if not os.path.exists(log_path):
         os.makedirs(log_path)
 
-    log_file = "{}-{}".format(logger_name, datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
+    log_file = logger_name
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.INFO)
     log_formatter = logging.Formatter('%(asctime)s [%(levelname)s] - %(message)s', datefmt='%d-%b-%y-%H:%M:%S')
@@ -205,7 +215,7 @@ def deconv_layer(name, n_channels, kernel_size, stride, x):
         filter_shape = [kernel_size, kernel_size, n_channels, n_channels]
 
         W = weight_variable(filter_shape, 'weights')
-        deconv = tf.nn.conv2d_transpose(x, W, output_shape, strides=strides, padding='VALID', name=name)
+        deconv = tf.nn.conv2d_transpose(x, W, output_shape, strides=strides, padding='SAME', name=name)
     return deconv
 
 
@@ -238,27 +248,3 @@ def save_images(images, names, result_path):
     for i in range(m):
         basename = os.path.basename(names[i][0])
         scipy.misc.imsave(result_path + "/" + basename, images[i])
-
-# transpose convolution layer
-# https://datascience.stackexchange.com/questions/6107/what-are-deconvolutional-layers
-# def deconv_layer(name, shape, stride, relu, batch_norm, x):
-#     with tf.variable_scope(name):
-#         W = weight_variable(shape, 'weights')
-#         # commenting out bias according to this
-#         # https://github.com/shelhamer/fcn.berkeleyvision.org/blob/1305c7378a9f0ab44b2c936f4d60e4687e3d8743/voc-fcn32s/net.py#L60
-#         # b = bias_variable([shape[2]], 'biases')
-#
-#         # transpose convolution requires shape input
-#         input_shape = tf.shape(x)
-#         deconv_shape = tf.stack([input_shape[0], input_shape[1] * 2, input_shape[2] * 2, shape[2]])
-#         # commenting out bias
-#         # h_deconv = tf.nn.conv2d_transpose(x, W, deconv_shape, [1, 2, 2, 1]) + b
-#         h_deconv = tf.nn.conv2d_transpose(x, W, deconv_shape, [1, 2, 2, 1])
-#
-#         if batch_norm:
-#             h_deconv = tf.contrib.layers.batch_norm(h_deconv)
-#
-#         if relu:
-#             h_deconv = tf.nn.relu(h_deconv)
-#
-#         return h_deconv

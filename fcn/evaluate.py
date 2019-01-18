@@ -30,8 +30,6 @@ def forward(samples):
 # ---------------------------------------------------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------------------------------------------------
-logger = utils.setup_logger("fcneval", LOG_DIR)
-logger.info('Things are good!')
 
 seed = 5
 np.random.seed(seed)
@@ -41,11 +39,19 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', help='Size of a batch. Default is 5.', type=int, default=5)
 parser.add_argument('--split', help='Split dataset. Default is split-150', type=str, default="split-150")
 parser.add_argument('--gpu', help='Run on GPU. Default is False', type=bool, default=False)
-parser.add_argument('--model',
-                    help="""3 models are supported at the moment fcn32, fcn16 and fcn8. Default is fcn32.""",
-                    type=str, default="fcn32")
+parser.add_argument('--run',
+                    help="""Example. 20190118173204_fcn32_10_5_0.001_0.5""",
+                    type=str, default="20190118173204_fcn32_10_5_0.001_0.5")
 
 config = parser.parse_args()
+
+# out dir
+OUT_DIR = LOG_DIR + "/" + config.run
+if not os.path.exists(OUT_DIR):
+    os.makedirs(OUT_DIR)
+
+logger = utils.setup_logger("fcneval", LOG_DIR)
+logger.info('Things are good!')
 logger.info("Configuration = {}".format(config))
 
 if config.gpu:
@@ -68,8 +74,8 @@ test_file_list = utils.load_data(images_path, gt_images_path)
 # --------------------------------------------------------------------------------------------------------------------------------
 session_config = tf.ConfigProto()
 sess = tf.Session(config=session_config)
-saver = tf.train.import_meta_graph(MODELS_DIR + "/" + config.model + "/fcn.meta")
-saver.restore(sess, tf.train.latest_checkpoint(MODELS_DIR + "/" + config.model))
+saver = tf.train.import_meta_graph(OUT_DIR + "/fcn.meta")
+saver.restore(sess, tf.train.latest_checkpoint(OUT_DIR))
 
 # Now, let's access and create placeholders variables
 graph = tf.get_default_graph()
@@ -84,10 +90,10 @@ per_pixel_acc = []
 jaccard = []
 i = 0
 
-# results path
-results_path = RESULTS_DIR + "/" + config.model
-if not os.path.exists(results_path):
-    os.makedirs(results_path)
+# # results path
+# results_path = OUT_DIR + "/results"
+# if not os.path.exists(results_path):
+#     os.makedirs(results_path)
 
 while batch_start < len(test_file_list):
     # get next mini-batch from training set
@@ -111,8 +117,8 @@ while batch_start < len(test_file_list):
     jaccard.extend(jaccard_batch)
 
     # save results
-    utils.save_images(p_batch_semantic, test_file_batch, results_path)
+    # utils.save_images(p_batch_semantic, test_file_batch, results_path)
 
-np.save(results_path + "/per_pixel_acc.npy", per_pixel_acc)
-np.save(results_path + "/jaccard.npy", jaccard)
+np.save(OUT_DIR + "/per_pixel_acc.npy", per_pixel_acc)
+np.save(OUT_DIR + "/jaccard.npy", jaccard)
 logger.info("Average per pixel accuracy = {}".format(np.sum(np.array(per_pixel_acc))/len(per_pixel_acc)))

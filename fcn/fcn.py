@@ -3,10 +3,13 @@
 """
 
 TODO:
-* tensor board
 * apply transfer learning (pretrained vgg-16)
+* data augmenation
+* project structure / model classes / utils, metrics lib
 * try out classification for vgg-16 on some data set
 * try cityscapes data set
+* instead cropping use resize (x - bilinear, y - nn)
+* one-hot-encoding
 
 batch norm (deeplearning ai exercises)
 conv layer in tf
@@ -28,10 +31,16 @@ Data sets
 
 Q
 * Best practices on how to organize code - loading configuration from config file?
-* Best practices on how to organize experiments?
-* how to debug tf vars?
+
+Filip's suggestions:
+https://github.com/mrharicot/monodepth
+https://github.com/tinghuiz/SfMLearner
+
+Other:
+https://github.com/MrGemy95/Tensorflow-Project-Template
 
 """
+
 import argparse
 import tensorflow as tf
 import utils
@@ -45,28 +54,40 @@ __email__ = "andrija.m.djurisic@gmail.com"
 # ---------------------------------------------------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------------------------------------------------
-logger = utils.setup_logger("fcn", LOG_DIR)
-logger.info('Things are good!')
 
+# seeds
 seed = 5
 np.random.seed(seed)
 tf.set_random_seed(seed)
 
+# args
 parser = argparse.ArgumentParser()
-parser.add_argument('--preprocessing', help='Preprocessing. Default is false.', type=bool, default=False)
-parser.add_argument('--epochs', help='Number of training epochs. Default is 100.', type=int, default=100)
 parser.add_argument('--model',
                     help="""3 models are supported at the moment fcn32, fcn16 and fcn8. Default is fcn32.""",
                     type=str, default="fcn32")
+parser.add_argument('--epochs', help='Number of training epochs. Default is 100.', type=int, default=100)
 parser.add_argument('--batch_size', help='Size of a batch. Default is 5.', type=int, default=5)
 parser.add_argument('--learning_rate', help='Learning rate parameter. Default is 0.001.', type=float, default=float(0.001))
 parser.add_argument('--keep_prob', help='Dropout keep prob. Default is 0.5.', type=float, default=float(0.5))
 parser.add_argument('--split', help='Split dataset. Default is split-150', type=str, default="split-150")
 parser.add_argument('--gpu', help='Run on GPU. Default is False', type=bool, default=False)
-
+parser.add_argument('--preprocessing', help='Preprocessing. Default is false.', type=bool, default=False)
 config = parser.parse_args()
+
+# hparam_string
+hparam_string = utils.make_hparam_string(config)
+
+# out dir
+OUT_DIR = LOG_DIR + "/" + hparam_string
+if not os.path.exists(OUT_DIR):
+    os.makedirs(OUT_DIR)
+
+# logger
+logger = utils.setup_logger("fcn", OUT_DIR)
+logger.info('Things are good!')
 logger.info("Configuration = {}".format(config))
 
+# gpu flag
 if config.gpu:
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 else:
@@ -75,7 +96,6 @@ else:
 # ---------------------------------------------------------------------------------------------------------------------
 # Load data
 # ---------------------------------------------------------------------------------------------------------------------
-
 train_data_path = DATA_DIR + "/" + config.split + "/training"
 images_path = train_data_path + "/image_2"
 gt_images_path = train_data_path + '/semantic_rgb'
@@ -107,6 +127,7 @@ with tf.variable_scope('input'):
     # https://github.com/shelhamer/fcn.berkeleyvision.org/edit/master/README.md#L72
     # https://github.com/shelhamer/fcn.berkeleyvision.org/blob/1305c7378a9f0ab44b2c936f4d60e4687e3d8743/voc-fcn32s/net.py#L28
     padded_x = tf.pad(x, [[0, 0], [100, 100], [100, 100], [0, 0]], "CONSTANT")
+
     # placeholder for output vector
     y = tf.placeholder(tf.float32, shape=[None, c_image_height, c_image_width, num_classes])     # [batch, in_height, in_width, in_channels]
 
@@ -189,8 +210,21 @@ with tf.variable_scope('loss'):
     # Take mean for total loss
     loss = tf.reduce_mean(cross_entropy, name="fcn_loss")
 
+summary_loss = tf.summary.scalar('loss', loss)
+
 opt = tf.train.AdamOptimizer(learning_rate=config.learning_rate, name="fcn_opt")
 goal = opt.minimize(loss, name="fcn_goal")
+
+# test sample
+sample_x, sample_y = utils.load_samples(1, [train_file_list[0]], c_image_height, c_image_width)
+summary_sample_x = tf.summary.image('sample_x', tf.constant(sample_x))
+summary_sample_y = tf.summary.image('sample_y', tf.constant(sample_y))
+sample_out = tf.placeholder(tf.float32, shape=[None, c_image_height, c_image_width, 3], name="sample_out")
+summary_sample_out = tf.summary.image('sample_out', sample_out)
+
+# setup tensor board
+writer = tf.summary.FileWriter(OUT_DIR)
+writer.add_graph(sess.graph)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Execution
@@ -202,13 +236,16 @@ np.random.shuffle(train_file_list)
 
 # initialize training
 batch_start = 0
-epoch = 0
-J = []
-curr_loss = 0
-step = 0
+epoch = 1
+step = 1
+
+# prepare test sample
+res_sample_x, res_sample_y = sess.run([summary_sample_x, summary_sample_y])
+writer.add_summary(res_sample_x, 0)
+writer.add_summary(res_sample_y, 0)
 
 # perform training
-while epoch < config.epochs:
+while epoch <= config.epochs:
 
     # get next mini-batch from training set
     batch_end = min(batch_start + config.batch_size, len(train_file_list))
@@ -216,31 +253,37 @@ while epoch < config.epochs:
     m = len(train_file_batch)
     batch_start += config.batch_size
 
-    # load batch into tensors
+    # load batch into tensors.
     x_batch, y_batch_prob = utils.load_samples_prob(m, train_file_batch, c_image_height, c_image_width, probability_classes)
+
     # reshuffle the train set if end of epoch reached
     if batch_start >= len(train_file_list):
-        logger.info("Epoch: {}, Loss: {}".format(epoch, curr_loss))
-        J.append(curr_loss)
         np.random.shuffle(train_file_list)
         batch_start = 0
         epoch += 1
 
+        # check how predicted test sample looks like after each epochs
+        crop_out = sess.run(h_crop, feed_dict={x: sample_x})
+        res_idx = np.argmax(crop_out, axis=3)
+        res_semantic = classes[res_idx]
+        res = sess.run(summary_sample_out, feed_dict={sample_out: res_semantic})
+        writer.add_summary(res, step)
+
     # run training step
     sess.run(goal, feed_dict={x: x_batch, y: y_batch_prob})
-    curr_loss = sess.run(loss, feed_dict={x: x_batch, y: y_batch_prob})
-    step += 1
-    logger.debug("Step: {}, Loss: {}".format(step, curr_loss))
 
+    # check loss
+    if step % 10 == 0:
+        res = sess.run(loss, feed_dict={x: x_batch, y: y_batch_prob})
+        logger.info("step: {}, loss: {}".format(step, res))
+
+        res = sess.run(summary_loss, feed_dict={x: x_batch, y: y_batch_prob})
+        writer.add_summary(res, step)
+
+    step += 1
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Save model
 # ----------------------------------------------------------------------------------------------------------------------
-
-model_path = MODELS_DIR + "/" + config.model
-if not os.path.exists(model_path):
-    os.makedirs(model_path)
-
-
 saver = tf.train.Saver()
-saver.save(sess, model_path + "/" + "fcn")
+saver.save(sess, OUT_DIR + "/fcn")
