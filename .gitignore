@@ -13,3 +13,4 @@ results/
 *.index
 checkpoint
 *.data*
+*.npz

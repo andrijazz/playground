@@ -12,7 +12,7 @@ def per_pixel_acc(p_batch_idx, y_batch_idx):
     return result
 
 
-def jaccard(p_batch_idx, y_batch_idx):
+def iou(p_batch_idx, y_batch_idx):
     m = p_batch_idx.shape[0]
     result = []
     for i in range(m):

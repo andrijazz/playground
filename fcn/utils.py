@@ -116,6 +116,7 @@ def load_samples_prob(m, images, image_height, image_width, probability_classes)
     """Iterates through list of images and packs them into batch of size m"""
     x_batch = np.empty([m, image_height, image_width, 3])
     num_classes = len(probability_classes)
+    y_batch = np.empty([m, image_height, image_width, 3])
     y_prob_batch = np.empty([m, image_height, image_width, num_classes])
     for i in range(m):
         image_file = images[i][0]
@@ -123,13 +124,15 @@ def load_samples_prob(m, images, image_height, image_width, probability_classes)
         image = scipy.misc.imread(image_file)
         gt_image = scipy.misc.imread(gt_image_file)
         x_batch[i, :, :, :] = image[0 : image_height, 0 : image_width, :]
+        y_batch[i, :, :, :] = gt_image[0: image_height, 0: image_width, :]
         y_prob_batch[i, :, :, :] = image2cprob(gt_image, probability_classes)
-    return x_batch, y_prob_batch
+    return x_batch, y_batch, y_prob_batch
 
 
 def load_samples_idx(m, images, image_height, image_width, idx_classes):
     """Iterates through list of images and packs them into batch of size m"""
     x_batch = np.empty([m, image_height, image_width, 3])
+    y_batch = np.empty([m, image_height, image_width, 3])
     y_idx_batch = np.empty([m, image_height, image_width])
     for i in range(m):
         image_file = images[i][0]
@@ -137,8 +140,9 @@ def load_samples_idx(m, images, image_height, image_width, idx_classes):
         image = scipy.misc.imread(image_file)
         gt_image = scipy.misc.imread(gt_image_file)
         x_batch[i, :, :, :] = image[0 : image_height, 0 : image_width, :]
+        y_batch[i, :, :, :] = gt_image[0: image_height, 0: image_width, :]
         y_idx_batch[i, :, :] = image2cidx(gt_image, idx_classes)
-    return x_batch, y_idx_batch
+    return x_batch, y_batch, y_idx_batch
 
 
 def crop_tensor(x, h, w):
@@ -148,6 +152,12 @@ def crop_tensor(x, h, w):
     offset_height = (tf.shape(x)[1] - h) // 2
     offset_width = (tf.shape(x)[2] - w) // 2
     return tf.image.crop_to_bounding_box(x, offset_height, offset_width, h, w)
+
+
+def assign_variable(name, value):
+    [scope, var] = name.split('/')
+    with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
+        return tf.get_variable(var).assign(value)
 
 
 # initialize weights from a truncated normal distribution
@@ -176,7 +186,7 @@ def max_pool_2x2(name, x):
 
 # convolution layer (shape = [filter_height, filter_width, in_channels, out_channels])
 def conv_layer(name, shape, stride, relu, batch_norm, dropout, padding, x, keep_prob=0.5):
-    with tf.variable_scope(name):
+    with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         W = weight_variable(shape, 'weights')
         b = bias_variable([shape[3]], 'biases')
         h_conv = conv2d(x, W, stride, padding) + b
@@ -248,3 +258,14 @@ def save_images(images, names, result_path):
     for i in range(m):
         basename = os.path.basename(names[i][0])
         scipy.misc.imsave(result_path + "/" + basename, images[i])
+
+
+def collect(images_path):
+    image_files = glob.glob(os.path.join(images_path, '*.png'))
+    classes = set()
+    for image_file in image_files:
+        image = scipy.misc.imread(image_file)
+        for px in range(image.shape[0]):
+            for py in range(image.shape[1]):
+                classes.add(tuple(image[px, py]))
+    return classes
