@@ -3,11 +3,9 @@
 """
 
 TODO:
-* data augmenation
-* project structure / model classes / utils, metrics lib
+* project structure / model classes
 * try out classification for vgg-16 on some data set
 * try cityscapes data set
-* instead cropping use resize (x - bilinear, y - nn)
 * one-hot-encoding
 
 batch norm (deeplearning ai exercises)
@@ -38,14 +36,12 @@ https://github.com/MrGemy95/Tensorflow-Project-Template
 
 import argparse
 import tensorflow as tf
-import utils
 import os
-import metrics
 from common import *
-
+import vapk as utils
 
 __author__ = "andrijazz"
-__email__ = "andrija.m.djurisic@gmail.com"
+__email__ = "a.djurisic@yahoo.com"
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Setup
@@ -65,9 +61,9 @@ parser.add_argument('--epochs', help='Number of training epochs. Default is 100.
 parser.add_argument('--batch_size', help='Size of a batch. Default is 5.', type=int, default=5)
 parser.add_argument('--learning_rate', help='Learning rate parameter. Default is 0.001.', type=float, default=float(0.001))
 parser.add_argument('--keep_prob', help='Dropout keep prob. Default is 0.5.', type=float, default=float(0.5))
-parser.add_argument('--split', help='Split dataset. Default is split-150', type=str, default="split-150")
-parser.add_argument('--gpu', help='Run on GPU. Default is False', type=bool, default=False)
 parser.add_argument('--use_pretrained_model', help='Use pretrained vgg-16 weights', type=bool, default=False)
+parser.add_argument('--gpu', help='Run on GPU. Default is False', type=bool, default=False)
+
 config = parser.parse_args()
 
 # hparam_string
@@ -92,12 +88,12 @@ else:
 # ---------------------------------------------------------------------------------------------------------------------
 # Load data
 # ---------------------------------------------------------------------------------------------------------------------
-train_data_path = DATA_DIR + "/" + config.split + "/training"
-images_path = train_data_path + "/image_2"
-gt_images_path = train_data_path + '/semantic_rgb'
+train_data_path = DATA_DIR + "/kitty/training"
+images_path = train_data_path + "/x"
+gt_images_path = train_data_path + '/y'
 
 # load data
-train_file_list = utils.load_data(images_path, gt_images_path)
+train_file_list = utils.semantic_segmentation.load_data(images_path, gt_images_path)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Network definition
@@ -208,7 +204,7 @@ goal = opt.minimize(loss, name="fcn_goal")
 summary_loss = tf.summary.scalar('loss', loss)
 
 # sample used in training
-train_x, train_y = utils.load_samples(1, [train_file_list[0]], c_image_height, c_image_width)
+train_x, train_y = utils.semantic_segmentation.load_samples(1, [train_file_list[0]], c_image_height, c_image_width)
 train_p = tf.placeholder(tf.float32, shape=[None, c_image_height, c_image_width, 3], name="train_p")
 
 summary_train_x = tf.summary.image('train_x', tf.constant(train_x))
@@ -314,7 +310,7 @@ while epoch <= config.epochs:
     batch_start += config.batch_size
 
     # load batch into tensors.
-    x_batch, _, y_batch_prob = utils.load_samples_prob(m, train_file_batch, c_image_height, c_image_width, probability_classes)
+    x_batch, _, y_batch_prob = utils.semantic_segmentation.load_samples_prob(m, train_file_batch, c_image_height, c_image_width, probability_classes)
 
     # reshuffle the train set if end of epoch reached
     if batch_start >= len(train_file_list):
@@ -339,7 +335,7 @@ while epoch <= config.epochs:
         writer.add_summary(res, step)
 
     step += 1
-
+    break
 # ----------------------------------------------------------------------------------------------------------------------
 # Save model
 # ----------------------------------------------------------------------------------------------------------------------
@@ -349,12 +345,12 @@ saver.save(sess, OUT_DIR + "/fcn")
 # ---------------------------------------------------------------------------------------------------------------------
 # Load test data
 # ---------------------------------------------------------------------------------------------------------------------
-test_data_path = DATA_DIR + "/" + config.split + "/testing"
-images_path = test_data_path + "/image_2"
-gt_images_path = test_data_path + '/semantic_rgb'
+test_data_path = DATA_DIR + "/kitty/testing"
+images_path = test_data_path + "/x"
+gt_images_path = test_data_path + '/y'
 
 # load data
-test_file_list = utils.load_data(images_path, gt_images_path)
+test_file_list = utils.semantic_segmentation.load_data(images_path, gt_images_path)
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Test execution
@@ -373,13 +369,13 @@ while batch_start < len(test_file_list):
     batch_start += batch_size
 
     # load batch into tensors
-    x_batch, y_batch, y_batch_idx = utils.load_samples_idx(m, test_file_batch, c_image_height, c_image_width, idx_classes)
+    x_batch, y_batch, y_batch_idx = utils.semantic_segmentation.load_samples_idx(m, test_file_batch, c_image_height, c_image_width, idx_classes)
     p_batch_idx, p_batch_semantic = forward(x_batch)
 
     # per pixel acc
-    ppa_batch = metrics.per_pixel_acc(p_batch_idx, y_batch_idx)
+    ppa_batch = utils.semantic_segmentation.per_pixel_acc(p_batch_idx, y_batch_idx)
     # iou
-    iou_batch = metrics.iou(p_batch_idx, y_batch_idx)
+    iou_batch = utils.semantic_segmentation.iou(p_batch_idx, y_batch_idx, num_classes)
 
     logger.info("step = {}, per_pixel_acc = {}".format(step, ppa_batch))
 
