@@ -67,7 +67,7 @@ parser.add_argument('--gpu', help='Run on GPU. Default is False', type=bool, def
 config = parser.parse_args()
 
 # hparam_string
-hparam_string = utils.make_hparam_string(config)
+hparam_string = utils.make_hparam_string(vars(config))
 
 # out dir
 OUT_DIR = LOG_DIR + "/" + hparam_string
