@@ -94,6 +94,8 @@ gt_images_path = train_data_path + '/y'
 
 # load data
 train_file_list = utils.semantic_segmentation.load_data(images_path, gt_images_path)
+# randomly shuffle the training set
+np.random.shuffle(train_file_list)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Network definition

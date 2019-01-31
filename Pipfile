@@ -20,6 +20,7 @@ seaborn = "*"
 sklearn = "*"
 imageio = "*"
 tensorflow = "*"
+tensorflow-gpu = "*"
 tqdm = "*"
 vapk = {git = "https://github.com/andrijazz/vapk.git", editable = true}
 
