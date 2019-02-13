@@ -1,16 +1,21 @@
 __pycache__/
 *.py[cod]
-
 *$py.class
 *.idea
-data/
-log/
-models/
-results/
 
+# ignore tf model files and logs
+log/
 *.log
 *.meta
 *.index
 checkpoint
 *.data*
 *.npz
+
+# check-in only .py files in datasets folder
+datasets/**/*.*
+datasets/**/README
+!datasets/**/*.py
+
+# fcn/spike.py
+fcn/spike.py

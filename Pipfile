@@ -21,7 +21,7 @@ sklearn = "*"
 imageio = "*"
 tensorflow-gpu = "*"
 tqdm = "*"
-vapk = {git = "https://github.com/andrijazz/vapk.git", editable = true}
+"7253672" = {path = "/home/andrijazz/source/andrijazz/vapk", editable = true}
 
 
 [requires]

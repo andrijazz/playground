@@ -35,10 +35,14 @@ https://github.com/MrGemy95/Tensorflow-Project-Template
 """
 
 import argparse
-import tensorflow as tf
 import os
-from common import *
+import numpy as np
+import tensorflow as tf
 import vapk as utils
+
+# datasets
+import datasets.kitti as kitti
+import datasets.cityscapes as cityscapes
 
 __author__ = "andrijazz"
 __email__ = "a.djurisic@yahoo.com"
@@ -46,6 +50,7 @@ __email__ = "a.djurisic@yahoo.com"
 # ---------------------------------------------------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------------------------------------------------
+LOG_DIR = "../log"
 
 # seeds
 seed = 5
@@ -53,7 +58,8 @@ np.random.seed(seed)
 tf.set_random_seed(seed)
 
 # args
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description='FCN TensorFlow implementation.')
+parser.add_argument('--dataset', help='Dataset.', type=str, required=True)
 parser.add_argument('--model',
                     help="""3 models are supported at the moment fcn32, fcn16 and fcn8. Default is fcn32.""",
                     type=str, default="fcn32")
@@ -61,9 +67,8 @@ parser.add_argument('--epochs', help='Number of training epochs. Default is 100.
 parser.add_argument('--batch_size', help='Size of a batch. Default is 5.', type=int, default=5)
 parser.add_argument('--learning_rate', help='Learning rate parameter. Default is 0.001.', type=float, default=float(0.001))
 parser.add_argument('--keep_prob', help='Dropout keep prob. Default is 0.5.', type=float, default=float(0.5))
-parser.add_argument('--use_pretrained_model', help='Use pretrained vgg-16 weights', type=bool, default=False)
+parser.add_argument('--pretrained_model', help='Use pretrained vgg-16 weights', type=bool, default=False)
 parser.add_argument('--gpu', help='Run on GPU. Default is False', type=bool, default=False)
-
 config = parser.parse_args()
 
 # hparam_string
@@ -88,14 +93,28 @@ else:
 # ---------------------------------------------------------------------------------------------------------------------
 # Load data
 # ---------------------------------------------------------------------------------------------------------------------
-train_data_path = DATA_DIR + "/kitty/training"
-images_path = train_data_path + "/x"
-gt_images_path = train_data_path + '/y'
+train_set = None
+val_set = None
+test_set = None
+if config.dataset == "kitti":
+    train_set = kitti.KittiDataset(
+        image_height=1224,
+        image_width=370,
+        path_img="data_semantics/training/image_2",
+        path_gt="data_semantics/training/semantic_rgb"
+    )
 
-# load data
-train_file_list = utils.semantic_segmentation.load_data(images_path, gt_images_path)
-# randomly shuffle the training set
-np.random.shuffle(train_file_list)
+    val_set = kitti.KittiDataset(
+        image_height=1224,
+        image_width=370,
+        path_img="data_semantics/val/image_2",
+        path_gt="data_semantics/val/semantic_rgb"
+    )
+
+elif config.dataset == "cityscapes":
+    dataset = cityscapes.CityscapesDataset()
+else:
+    exit("Unknown dataset")
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Network definition
@@ -248,7 +267,7 @@ sess.run(tf.global_variables_initializer())
 logger.info("Training started")
 
 # initialized weights if configured
-if config.use_pretrained_model:
+if config.pretrained_model:
     weights = np.load('vgg16_weights.npz')
     init_ops = list()
     init_ops.append(utils.assign_variable('conv1_1/weights', weights['conv1_1_W']))
