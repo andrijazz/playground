@@ -4,6 +4,7 @@ from collections import namedtuple
 import tensorflow as tf
 import numpy as np
 # TODO replace with slim
+# import tensorflow.contrib.slim as slim
 import vapk as utils
 
 
@@ -25,10 +26,23 @@ class fcn32(object):
         self.__build_model()
         self.__build_loss()
         self.__build_summaries()
+
         # init id_to_color
         self.id_to_rgb = np.zeros((self.params.num_labels, 3))
         for label in self.params.labels:
             self.id_to_rgb[label.id] = label.color
+
+    # def initialize_weights(self, name):
+    #     if self.params.init_weights:
+    #         weights = np.load('vgg16_weights.npz')
+    #         return tf.constant_initializer(weights[name + '_W'])
+    #     return tf.contrib.layers.xavier_initializer()
+    #
+    # def initialize_biases(self, name):
+    #     if self.params.init_weights:
+    #         weights = np.load('vgg16_weights.npz')
+    #         return tf.constant_initializer(weights[name + '_b'])
+    #     return tf.constant(0.0)
 
     def __build_model(self):
         with tf.variable_scope('input', reuse=self.reuse_variables):
@@ -36,30 +50,31 @@ class fcn32(object):
             self.y = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="y")  # [batch, in_height, in_width, in_channels]
             self.y_probability = tf.py_func(self.batch_rgb_to_probability, [self.y], tf.float32)
 
-            # padding input by 100
-            # https://github.com/shelhamer/fcn.berkeleyvision.org/edit/master/README.md#L72
-            # https://github.com/shelhamer/fcn.berkeleyvision.org/blob/1305c7378a9f0ab44b2c936f4d60e4687e3d8743/voc-fcn32s/net.py#L28
-            padded_x = tf.pad(self.x, [[0, 0], [100, 100], [100, 100], [0, 0]], "CONSTANT")
+        # padding input by 100
+        # https://github.com/shelhamer/fcn.berkeleyvision.org/edit/master/README.md#L72
+        # https://github.com/shelhamer/fcn.berkeleyvision.org/blob/1305c7378a9f0ab44b2c936f4d60e4687e3d8743/voc-fcn32s/net.py#L28
+        padded_x = tf.pad(self.x, [[0, 0], [100, 100], [100, 100], [0, 0]], "CONSTANT")
 
-        with tf.variable_scope('vgg-16', reuse=self.reuse_variables):
-            h_conv1_1 = utils.conv_layer('conv1_1', [3, 3, 3, 64], [1, 1, 1, 1], True, False, False, "SAME",  padded_x)
-            h_conv1_2 = utils.conv_layer('conv1_2', [3, 3, 64, 64], [1, 1, 1, 1], True, False, False, "SAME", h_conv1_1)
-            h_pool1 = utils.max_pool_2x2('pool1', h_conv1_2)
-            h_conv2_1 = utils.conv_layer('conv2_1', [3, 3, 64, 128], [1, 1, 1, 1], True, False, False, "SAME", h_pool1)
-            h_conv2_2 = utils.conv_layer('conv2_2', [3, 3, 128, 128], [1, 1, 1, 1], True, False, False, "SAME", h_conv2_1)
-            h_pool2 = utils.max_pool_2x2('pool2', h_conv2_2)
-            h_conv3_1 = utils.conv_layer('conv3_1', [3, 3, 128, 256], [1, 1, 1, 1], True, False, False, "SAME", h_pool2)
-            h_conv3_2 = utils.conv_layer('conv3_2', [3, 3, 256, 256], [1, 1, 1, 1], True, False, False, "SAME", h_conv3_1)
-            h_conv3_3 = utils.conv_layer('conv3_3', [3, 3, 256, 256], [1, 1, 1, 1], True, False, False, "SAME", h_conv3_2)
-            h_pool3 = utils.max_pool_2x2('pool3', h_conv3_3)
-            h_conv4_1 = utils.conv_layer('conv4_1', [3, 3, 256, 512], [1, 1, 1, 1], True, False, False, "SAME", h_pool3)
-            h_conv4_2 = utils.conv_layer('conv4_2', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv4_1)
-            h_conv4_3 = utils.conv_layer('conv4_3', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv4_2)
-            h_pool4 = utils.max_pool_2x2('pool4', h_conv4_3)
-            h_conv5_1 = utils.conv_layer('conv5_1', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_pool4)
-            h_conv5_2 = utils.conv_layer('conv5_2', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv5_1)
-            h_conv5_3 = utils.conv_layer('conv5_3', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv5_2)
-            h_pool5 = utils.max_pool_2x2('pool5', h_conv5_3)
+        # with tf.variable_scope('encoder', reuse=self.reuse_variables):
+        # h_conv1_1 = slim.conv2d(padded_x, 64, [3, 3], scope='conv1_1', weights_initializer=self.initialize_weights('conv'), biases_initializer=)
+        h_conv1_1 = utils.conv_layer('conv1_1', [3, 3, 3, 64], [1, 1, 1, 1], True, False, False, "SAME",  padded_x)
+        h_conv1_2 = utils.conv_layer('conv1_2', [3, 3, 64, 64], [1, 1, 1, 1], True, False, False, "SAME", h_conv1_1)
+        h_pool1 = utils.max_pool_2x2('pool1', h_conv1_2)
+        h_conv2_1 = utils.conv_layer('conv2_1', [3, 3, 64, 128], [1, 1, 1, 1], True, False, False, "SAME", h_pool1)
+        h_conv2_2 = utils.conv_layer('conv2_2', [3, 3, 128, 128], [1, 1, 1, 1], True, False, False, "SAME", h_conv2_1)
+        h_pool2 = utils.max_pool_2x2('pool2', h_conv2_2)
+        h_conv3_1 = utils.conv_layer('conv3_1', [3, 3, 128, 256], [1, 1, 1, 1], True, False, False, "SAME", h_pool2)
+        h_conv3_2 = utils.conv_layer('conv3_2', [3, 3, 256, 256], [1, 1, 1, 1], True, False, False, "SAME", h_conv3_1)
+        h_conv3_3 = utils.conv_layer('conv3_3', [3, 3, 256, 256], [1, 1, 1, 1], True, False, False, "SAME", h_conv3_2)
+        h_pool3 = utils.max_pool_2x2('pool3', h_conv3_3)
+        h_conv4_1 = utils.conv_layer('conv4_1', [3, 3, 256, 512], [1, 1, 1, 1], True, False, False, "SAME", h_pool3)
+        h_conv4_2 = utils.conv_layer('conv4_2', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv4_1)
+        h_conv4_3 = utils.conv_layer('conv4_3', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv4_2)
+        h_pool4 = utils.max_pool_2x2('pool4', h_conv4_3)
+        h_conv5_1 = utils.conv_layer('conv5_1', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_pool4)
+        h_conv5_2 = utils.conv_layer('conv5_2', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv5_1)
+        h_conv5_3 = utils.conv_layer('conv5_3', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv5_2)
+        h_pool5 = utils.max_pool_2x2('pool5', h_conv5_3)
         with tf.variable_scope('decoder', reuse=self.reuse_variables):
             h_fc6 = utils.conv_layer('fc6', [7, 7, 512, 4096], [1, 1, 1, 1], True, False, True, "VALID", h_pool5, self.params.keep_prob)
             h_fc7 = utils.conv_layer('fc7', [1, 1, 4096, 4096], [1, 1, 1, 1], True, False, True, "VALID", h_fc6, self.params.keep_prob)
@@ -96,12 +111,10 @@ class fcn32(object):
     def __build_summaries(self):
         with tf.device('/cpu:0'):
             tf.summary.scalar('train_loss', self.loss, collections=["train_collection"])
-
             tf.summary.scalar('val_loss', self.loss, collections=["val_collection"])
             tf.summary.image('x', self.x, max_outputs=4, collections=["val_collection"])
             tf.summary.image('y', self.y, max_outputs=4, collections=["val_collection"])
             tf.summary.image('p', self.output, max_outputs=4, collections=["val_collection"])
-
             tf.summary.image('predicted', self.output, max_outputs=4, collections=["test_collection"])
 
     def rgb_to_probability(self, img):
@@ -123,3 +136,46 @@ class fcn32(object):
     def batch_id_to_rgb(self, id_batch):
         res = self.id_to_rgb[id_batch]
         return res.astype(dtype=np.float32)
+
+    def initialize_weights_op(self):
+        weights = np.load('vgg16_weights.npz')
+        init_ops = list()
+        init_ops.append(utils.assign_variable('conv1_1/weights', weights['conv1_1_W']))
+        init_ops.append(utils.assign_variable('conv1_1/biases', weights['conv1_1_b']))
+
+        init_ops.append(utils.assign_variable('conv1_2/weights', weights['conv1_2_W']))
+        init_ops.append(utils.assign_variable('conv1_2/biases', weights['conv1_2_b']))
+
+        init_ops.append(utils.assign_variable('conv2_1/weights', weights['conv2_1_W']))
+        init_ops.append(utils.assign_variable('conv2_1/biases', weights['conv2_1_b']))
+
+        init_ops.append(utils.assign_variable('conv2_2/weights', weights['conv2_2_W']))
+        init_ops.append(utils.assign_variable('conv2_2/biases', weights['conv2_2_b']))
+
+        init_ops.append(utils.assign_variable('conv3_1/weights', weights['conv3_1_W']))
+        init_ops.append(utils.assign_variable('conv3_1/biases', weights['conv3_1_b']))
+
+        init_ops.append(utils.assign_variable('conv3_2/weights', weights['conv3_2_W']))
+        init_ops.append(utils.assign_variable('conv3_2/biases', weights['conv3_2_b']))
+
+        init_ops.append(utils.assign_variable('conv3_3/weights', weights['conv3_3_W']))
+        init_ops.append(utils.assign_variable('conv3_3/biases', weights['conv3_3_b']))
+
+        init_ops.append(utils.assign_variable('conv4_1/weights', weights['conv4_1_W']))
+        init_ops.append(utils.assign_variable('conv4_1/biases', weights['conv4_1_b']))
+
+        init_ops.append(utils.assign_variable('conv4_2/weights', weights['conv4_2_W']))
+        init_ops.append(utils.assign_variable('conv4_2/biases', weights['conv4_2_b']))
+
+        init_ops.append(utils.assign_variable('conv4_3/weights', weights['conv4_3_W']))
+        init_ops.append(utils.assign_variable('conv4_3/biases', weights['conv4_3_b']))
+
+        init_ops.append(utils.assign_variable('conv5_1/weights', weights['conv5_1_W']))
+        init_ops.append(utils.assign_variable('conv5_1/biases', weights['conv5_1_b']))
+
+        init_ops.append(utils.assign_variable('conv5_2/weights', weights['conv5_2_W']))
+        init_ops.append(utils.assign_variable('conv5_2/biases', weights['conv5_2_b']))
+
+        init_ops.append(utils.assign_variable('conv5_3/weights', weights['conv5_3_W']))
+        init_ops.append(utils.assign_variable('conv5_3/biases', weights['conv5_3_b']))
+        return init_ops
