@@ -41,7 +41,8 @@ def test(run):
         labels=test_set.labels,
         num_labels=test_set.num_labels,
         keep_prob=config.keep_prob,
-        learning_rate=config.learning_rate)
+        learning_rate=config.learning_rate,
+        type=config.model)
     model = fcn32(params)
 
     # init summaries

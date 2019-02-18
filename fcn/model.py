@@ -14,7 +14,8 @@ fcn_parameters = namedtuple('parameters',
                         'labels,'
                         'num_labels,'
                         'keep_prob, '
-                        'learning_rate')
+                        'learning_rate, '
+                        'type')
 
 
 class fcn32(object):
@@ -75,12 +76,43 @@ class fcn32(object):
             h_conv5_2 = utils.conv_layer('conv5_2', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv5_1)
             h_conv5_3 = utils.conv_layer('conv5_3', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv5_2)
             h_pool5 = utils.max_pool_2x2('pool5', h_conv5_3)
-        with tf.variable_scope('decoder', reuse=self.reuse_variables):
             h_fc6 = utils.conv_layer('fc6', [7, 7, 512, 4096], [1, 1, 1, 1], True, False, True, "VALID", h_pool5, self.params.keep_prob)
             h_fc7 = utils.conv_layer('fc7', [1, 1, 4096, 4096], [1, 1, 1, 1], True, False, True, "VALID", h_fc6, self.params.keep_prob)
             h_score_fr = utils.conv_layer('score_fr', [1, 1, 4096, self.params.num_labels], [1, 1, 1, 1], False, False, False, "VALID", h_fc7)
-            # h_upscore - upscore_shape = (m, 384, 1248, num_labels)
-            deconv = utils.deconv_layer('deconv', self.params.num_labels, 64, 32, h_score_fr)
+        with tf.variable_scope('decoder', reuse=self.reuse_variables):
+            if self.params.type == "fcn32":
+                self.deconv = utils.deconv_layer('deconv', self.params.num_labels, 64, 32, h_score_fr)
+            elif self.params.type == "fcn16":
+                h_upscore2 = utils.deconv_layer('upscore2', self.params.num_labels, 4, 2, h_score_fr)
+
+                # pool4
+                h_score_pool4 = utils.conv_layer('score_pool4', [1, 1, 512, self.params.num_labels], [1, 1, 1, 1], True, False, False, "SAME", h_pool4)
+                h_score_pool4_cropped = utils.crop_tensor(h_score_pool4, tf.shape(h_upscore2)[1], tf.shape(h_upscore2)[2])
+                h_fuse_pool4 = h_upscore2 + h_score_pool4_cropped
+
+                # h_upscore16
+                self.deconv = utils.deconv_layer('deconv', self.params.num_labels, 32, 16, h_fuse_pool4)
+
+            elif self.params.type == "fcn8":
+                h_upscore2 = utils.deconv_layer('upscore2', self.params.num_labels, 4, 2, h_score_fr)
+
+                # pool4
+                h_score_pool4 = utils.conv_layer('score_pool4', [1, 1, 512, self.params.num_labels], [1, 1, 1, 1], True, False, False,
+                                                 "SAME", h_pool4)
+                h_score_pool4_cropped = utils.crop_tensor(h_score_pool4, tf.shape(h_upscore2)[1], tf.shape(h_upscore2)[2])
+                h_fuse_pool4 = h_upscore2 + h_score_pool4_cropped
+                h_upscore_pool4 = utils.deconv_layer('upscore_pool4', self.params.num_labels, 4, 2, h_fuse_pool4)
+
+                # pool3
+                h_score_pool3 = utils.conv_layer('score_pool3', [1, 1, 256, self.params.num_labels], [1, 1, 1, 1], True, False, False,
+                                                 "SAME", h_pool3)
+                h_score_pool3_cropped = utils.crop_tensor(h_score_pool3, tf.shape(h_upscore_pool4)[1],
+                                                          tf.shape(h_upscore_pool4)[2])
+                h_fuse_pool3 = h_upscore_pool4 + h_score_pool3_cropped
+
+                # h_upscore8
+                self.deconv = utils.deconv_layer('deconv', self.params.num_labels, 16, 8, h_fuse_pool3)
+
         with tf.variable_scope('output', reuse=self.reuse_variables):
             # cropping the output image to original size
             # https://github.com/shelhamer/fcn.berkeleyvision.org/edit/master/README.md#L72
@@ -88,7 +120,7 @@ class fcn32(object):
             # offset_height = (tf.shape(h_upscore)[1] - c_image_height) // 2
             # offset_width = (tf.shape(h_upscore)[2] - c_image_width) // 2
             # h_crop        = tf.image.crop_to_bounding_box(h_upscore, offset_height, offset_width, c_image_height, c_image_width)
-            self.h_crop = utils.crop_tensor(deconv, self.params.image_height, self.params.image_width)
+            self.h_crop = utils.crop_tensor(self.deconv, self.params.image_height, self.params.image_width)
             self.h_argmax = tf.math.argmax(self.h_crop, axis=3)
             self.output = tf.py_func(self.batch_id_to_rgb, [self.h_argmax], tf.float32)
 

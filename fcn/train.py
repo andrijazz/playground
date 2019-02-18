@@ -70,7 +70,8 @@ def train(config):
         labels=train_set.labels,
         num_labels=train_set.num_labels,
         keep_prob=config.keep_prob,
-        learning_rate=config.learning_rate)
+        learning_rate=config.learning_rate,
+        type=config.model)
     model = fcn32(fcn_params)
 
     # init sess
@@ -140,7 +141,7 @@ def main(_):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Fully Convolutional Networks TensorFlow implementation [Training]')
 
-    parser.add_argument('-m', '--model_name', type=str, help='model name. fcn32 or fcn16 or fcn8', default='fcn32')
+    parser.add_argument('-m', '--model', type=str, help='model. fcn32 or fcn16 or fcn8', default='fcn32')
     parser.add_argument('-d', '--dataset', type=str, help='dataset to train on. kitti or cityscapes', default='kitti')
     parser.add_argument('-b', '--batch_size', type=int, help='batch size', default=2)
     parser.add_argument('-n', '--num_epochs', type=int, help='number of epochs', default=50)
