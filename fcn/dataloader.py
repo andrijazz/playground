@@ -27,7 +27,7 @@ def load(dataset_name):
             image_height=370,
             image_width=1224,
             path_img=DATASET_DIR + "/kitti/data_semantics/testing/image_2",
-            path_gt="" #DATASET_DIR + "/kitti/data_semantics/testing/semantic_rgb"
+            path_gt=DATASET_DIR + "/kitti/data_semantics/testing/semantic_rgb"
         )
         return train_set, val_set, test_set
 

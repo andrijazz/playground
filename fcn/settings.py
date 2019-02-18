@@ -7,4 +7,4 @@ LOG_DIR = ROOT_DIR + "/log"
 MODEL_NAME = "fcn"
 LOG_FILENAME = "fcn"
 CONFIG_FILENAME = "config.json"
-debug = True
+debug = False
