@@ -7,7 +7,7 @@ import glob
 import scipy
 import numpy as np
 import scipy.misc
-
+import vapk as utils
 # --------------------------------------------------------------------------------
 # Definitions
 # --------------------------------------------------------------------------------
@@ -26,38 +26,37 @@ Label = namedtuple( 'Label' , [
 # --------------------------------------------------------------------------------
 # A list of all labels
 # --------------------------------------------------------------------------------
-# TODO fix names
 labels = [
     #       name                     id   color
-    Label(  'unlabeled'            ,  0 , (   0,   0,   0) ),
-    Label(  'ego vehicle'          ,  1 , (   0,   0,  70) ),
-    Label(  'rectification border' ,  2 , (   0,   0,  90) ),
-    Label(  'out of roi'           ,  3 , (   0,   0, 110) ),
-    Label(  'static'               ,  4 , (   0,   0, 142) ),
-    Label(  'dynamic'              ,  5 , (   0,   0, 230) ),
-    Label(  'ground'               ,  6 , (   0,  60, 100) ),
-    Label(  'road'                 ,  7 , (   0,  80, 100) ),
-    Label(  'sidewalk'             ,  8 , (  70,  70,  70) ),
-    Label(  'parking'              ,  9 , (  70, 130, 180) ),
-    Label(  'rail track'           , 10 , (  81,   0,  81) ),
-    Label(  'building'             , 11 , ( 102, 102, 156) ),
-    Label(  'wall'                 , 12 , ( 107, 142,  35) ),
-    Label(  'fence'                , 13 , ( 111,  74,   0) ),
-    Label(  'guard rail'           , 14 , ( 119,  11,  32) ),
-    Label(  'bridge'               , 15 , ( 128,  64, 128) ),
-    Label(  'tunnel'               , 16 , ( 150, 100, 100) ),
-    Label(  'pole'                 , 17 , ( 150, 120,  90) ),
-    Label(  'polegroup'            , 18 , ( 152, 251, 152) ),
-    Label(  'traffic light'        , 19 , ( 153, 153, 153) ),
-    Label(  'traffic sign'         , 20 , ( 180, 165, 180) ),
-    Label(  'vegetation'           , 21 , ( 190, 153, 153) ),
-    Label(  'terrain'              , 22 , ( 220,  20,  60) ),
-    Label(  'sky'                  , 23 , ( 220, 220,   0) ),
-    Label(  'person'               , 24 , ( 230, 150, 140) ),
-    Label(  'rider'                , 25 , ( 244,  35, 232) ),
-    Label(  'car'                  , 26 , ( 250, 170,  30) ),
-    Label(  'truck'                , 27 , ( 250, 170, 160) ),
-    Label(  'bus'                  , 28 , ( 255,   0,   0) ),
+    Label(  'unlabeled'            , 0  , (  0,  0,  0) ),
+    Label(  'dynamic'              , 1  , (111, 74,  0) ),
+    Label(  'ground'               , 2  , ( 81,  0, 81) ),
+    Label(  'road'                 , 3  , (128, 64,128) ),
+    Label(  'sidewalk'             , 4  , (244, 35,232) ),
+    Label(  'parking'              , 5  , (250,170,160) ),
+    Label(  'rail track'           , 6  , (230,150,140) ),
+    Label(  'building'             , 7  , ( 70, 70, 70) ),
+    Label(  'wall'                 , 8  , (102,102,156) ),
+    Label(  'fence'                , 9  , (190,153,153) ),
+    Label(  'guard rail'           , 10 , (180,165,180) ),
+    Label(  'bridge'               , 11 , (150,100,100) ),
+    Label(  'tunnel'               , 12 , (150,120, 90) ),
+    Label(  'pole'                 , 13 , (153,153,153) ),
+    Label(  'traffic light'        , 14 , (250,170, 30) ),
+    Label(  'traffic sign'         , 15 , (220,220,  0) ),
+    Label(  'vegetation'           , 16 , (107,142, 35) ),
+    Label(  'terrain'              , 17 , (152,251,152) ),
+    Label(  'sky'                  , 18 , ( 70,130,180) ),
+    Label(  'person'               , 19 , (220, 20, 60) ),
+    Label(  'rider'                , 20 , (255,  0,  0) ),
+    Label(  'car'                  , 21 , (  0,  0,142) ),
+    Label(  'truck'                , 22 , (  0,  0, 70) ),
+    Label(  'bus'                  , 23 , (  0, 60,100) ),
+    Label(  'caravan'              , 24 , (  0,  0, 90) ),
+    Label(  'trailer'              , 25 , (  0,  0,110) ),
+    Label(  'train'                , 26 , (  0, 80,100) ),
+    Label(  'motorcycle'           , 27 , (  0,  0,230) ),
+    Label(  'bicycle'              , 28 , (119, 11, 32) ),
 ]
 
 # --------------------------------------------------------------------------------
@@ -85,37 +84,15 @@ color_to_label       = { label.color    : label for label in labels           }
 #     return probability_batch
 
 
-class BatchIterator(object):
-    def __init__(self,
-                 file_list):
-        self.file_list = file_list
-        np.random.shuffle(self.file_list)
-        self.batch_start = 0
-
-    def next(self, batch_size):
-        end_of_epoch = False
-        batch_end = min(self.batch_start + batch_size, len(self.file_list))
-        file_batch = self.file_list[self.batch_start : batch_end]
-        m = len(file_batch)
-        self.batch_start += m
-
-        # reshuffle the set if end of epoch reached
-        if self.batch_start >= len(self.file_list):
-            np.random.shuffle(self.file_list)
-            self.batch_start = 0
-            end_of_epoch = True
-        return file_batch, end_of_epoch
-
-
 class KittiDataset(object):
     def __init__(self,
-                 image_height,
-                 image_width,
                  path_img,
                  path_gt):
         # sizes
-        self.image_height = image_height
-        self.image_width = image_width
+        self.image_height = 370
+        self.image_width = 1224
+        self.num_channels = 3
+
         # labels
         self.labels = labels
         self.num_labels = len(labels)
@@ -125,7 +102,7 @@ class KittiDataset(object):
         # pairs
         self.__initialize(path_img, path_gt)
         # iters
-        self.iter = BatchIterator(self.file_pairs)
+        self.iter = utils.BatchIterator(self.file_pairs)
 
     def __initialize(self, path_img, path_gt):
         images = glob.glob(os.path.join(path_img, '*.png'))
@@ -141,17 +118,17 @@ class KittiDataset(object):
     def __load_samples(self, images):
         """Iterates through list of images and packs them into batch of size m"""
         m = len(images)
-        x_batch = np.empty([m, self.image_height, self.image_width, 3])
-        y_batch = np.empty([m, self.image_height, self.image_width, 3])
+        x_batch = np.empty([m, self.image_height, self.image_width, self.num_channels])
+        y_batch = np.empty([m, self.image_height, self.image_width, self.num_channels])
 
         for i in range(m):
             image_file = images[i][0]
             gt_image_file = images[i][1]
             image = scipy.misc.imread(image_file)
-            x_batch[i, :, :, :] = image[0 : self.image_height, 0 : self.image_width, :]
+            x_batch[i] = image
             if gt_image_file: # in test set we might not have gt image
                 gt_image = scipy.misc.imread(gt_image_file)
-                y_batch[i, :, :, :] = gt_image
+                y_batch[i] = gt_image
         return x_batch, y_batch
 
     def load_batch(self, batch_size):
@@ -162,8 +139,6 @@ class KittiDataset(object):
 
 def main():
     kitti_train = KittiDataset(
-        image_height=370,
-        image_width=1224,
         path_img="data_semantics/training/image_2",
         path_gt="data_semantics/training/semantic_rgb"
     )

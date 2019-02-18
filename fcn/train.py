@@ -2,8 +2,8 @@
 
 """
 TODO:
+* model dataset as arg
 * metrics
-* cityscapes
 * Readme with results / playground readme about general guidelines
 * plot predict.py (overlay)
 

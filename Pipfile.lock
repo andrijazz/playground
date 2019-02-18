@@ -528,7 +528,7 @@
         "vapk-andrijazz": {
             "editable": true,
             "git": "https://github.com/andrijazz/vapk.git",
-            "ref": "4c1d0989b6c6f1a197493f31c5c0aa4cfce05e8d"
+            "ref": "4986547973a38bed4449a084986a9f7fdd6cae91"
         },
         "werkzeug": {
             "hashes": [
@@ -542,6 +542,7 @@
                 "sha256:b79ffea026bc0dbd940868347ae9eee36789b6496b6623bd2dec7c7c540a8f99",
                 "sha256:12363e6df5678ecf9daf8429f06f97e7106e701405898f24318ce7f0b79c611a"
             ],
+            "markers": "python_version < '3'",
             "version": "==0.33.0"
         }
     },
