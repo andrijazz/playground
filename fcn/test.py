@@ -3,10 +3,6 @@ import json
 from model import *
 from dataloader import *
 
-parser = argparse.ArgumentParser(description='Fully Convolutional Networks TensorFlow implementation [Testing]')
-parser.add_argument('-r', '--run', type=str, help='run', required=True)
-args = parser.parse_args()
-
 
 def test(run):
     # seeds
@@ -20,9 +16,9 @@ def test(run):
         exit("Run {} doesn't exist".format(run))
 
     # logger
-    logger = utils.setup_logger(LOG_FILENAME, OUT_DIR)
+    logger = utils.get_logger(LOG_FILENAME, OUT_DIR)
     logger.info("Things are good ... testing")
-    logger.info("Configuration = {}".format(args))
+    logger.info("Configuration = {}".format(run))
 
     # load config
     with open(OUT_DIR + "/" + CONFIG_FILENAME, 'r') as fp:
@@ -34,6 +30,10 @@ def test(run):
     # init dataset
     _, _, test_set = load(config.dataset)
 
+    # init sess
+    session_config = tf.ConfigProto()
+    sess = tf.Session(config=session_config)
+
     # init model
     params = fcn_parameters(
         image_height=test_set.image_height,
@@ -43,10 +43,6 @@ def test(run):
         keep_prob=config.keep_prob,
         learning_rate=config.learning_rate)
     model = fcn32(params)
-
-    # init sess
-    session_config = tf.ConfigProto()
-    sess = tf.Session(config=session_config)
 
     # init summaries
     summary_writer = tf.summary.FileWriter(OUT_DIR)
@@ -85,10 +81,18 @@ def test(run):
     # TODO save iou / ppa
     # np.save(OUT_DIR + "/results.npy", results)
 
+    # clean up tf things
+    sess.close()
+    tf.reset_default_graph()
+
 
 def main(_):
     test(args.run)
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Fully Convolutional Networks TensorFlow implementation [Testing]')
+    parser.add_argument('-r', '--run', type=str, help='run', required=True)
+    args = parser.parse_args()
+
     tf.app.run()

@@ -9,7 +9,6 @@ from kitti import kitti_semantics
 
 def load(dataset_name):
     if dataset_name == "kitti":
-        # TODO fix path
         train_set = kitti_semantics.KittiDataset(
             image_height=370,
             image_width=1224,
