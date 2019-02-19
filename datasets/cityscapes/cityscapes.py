@@ -99,7 +99,6 @@ class CityscapesDataset(object):
             if not os.path.exists(gt_image):
                 exit("missing label for image {}".format(image.name))
             data.append([image, gt_image])
-            print([image, gt_image])
         self.file_pairs = data
 
     def __load_samples(self, images):

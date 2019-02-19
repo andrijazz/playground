@@ -8,4 +8,5 @@ python train.py \
     --num_epochs 50 \
     --keep_prob 0.5 \
     --init_weights True \
-    --gpu 1
+    --gpu 1 \
+    --model fcn8
