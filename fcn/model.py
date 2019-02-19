@@ -31,18 +31,6 @@ class fcn(object):
         for label in self.params.labels:
             self.id_to_rgb[label.id] = label.color
 
-    # def initialize_weights(self, name):
-    #     if self.params.init_weights:
-    #         weights = np.load('vgg16_weights.npz')
-    #         return tf.constant_initializer(weights[name + '_W'])
-    #     return tf.contrib.layers.xavier_initializer()
-    #
-    # def initialize_biases(self, name):
-    #     if self.params.init_weights:
-    #         weights = np.load('vgg16_weights.npz')
-    #         return tf.constant_initializer(weights[name + '_b'])
-    #     return tf.constant(0.0)
-
     def __build_model(self):
         with tf.variable_scope('input', reuse=self.reuse_variables):
             self.x = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="x")  # [batch, in_height, in_width, in_channels]
@@ -163,6 +151,18 @@ class fcn(object):
     def batch_id_to_rgb(self, id_batch):
         res = self.id_to_rgb[id_batch]
         return res.astype(dtype=np.float32)
+
+    # def initialize_weights(self, name):
+    #     if self.params.init_weights:
+    #         weights = np.load('vgg16_weights.npz')
+    #         return tf.constant_initializer(weights[name + '_W'])
+    #     return tf.contrib.layers.xavier_initializer()
+    #
+    # def initialize_biases(self, name):
+    #     if self.params.init_weights:
+    #         weights = np.load('vgg16_weights.npz')
+    #         return tf.constant_initializer(weights[name + '_b'])
+    #     return tf.constant(0.0)
 
     def initialize_weights_op(self):
         weights = np.load('vgg16_weights.npz')

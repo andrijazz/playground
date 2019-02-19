@@ -1,5 +1,6 @@
 import argparse
 import json
+import tqdm
 from model import *
 from dataloader import *
 
@@ -63,8 +64,9 @@ def test(run):
 
     logger.info("Testing started")
     step = 1
+    pbar = tqdm.tqdm(total=len(test_set.file_pairs))
     while True:
-        x_batch, _, end_of_epoch = test_set.load_batch(batch_size=1)    # test batch size is always 1
+        x_batch, _, end_of_epoch = test_set.load_batch(batch_size=1)
         feed = {
             model.x: x_batch,
         }
@@ -75,9 +77,12 @@ def test(run):
         summary_str = sess.run(summary_test_op, feed_dict=feed)
         summary_writer.add_summary(summary_str, global_step=step)
         step += 1
+        pbar.update(1)
 
         if debug:
             break
+
+    pbar.close()
 
     # TODO save iou / ppa
     # np.save(OUT_DIR + "/results.npy", results)

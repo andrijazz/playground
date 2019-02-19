@@ -5,8 +5,6 @@ TODO:
 * use slim: import tensorflow.contrib.slim as slim
 * model dataset as arg
 * metrics
-* progress bars for training and testing
-* run.sh (delete main ... only train.py / test.py - checkpoints)
 * Readme with results / playground readme about general guidelines
 * plot predict.py (overlay)
 * continue with training
@@ -27,6 +25,7 @@ Data sets
 """
 import argparse
 import json
+import tqdm
 from dataloader import *
 from model import *
 
@@ -103,6 +102,7 @@ def train(config):
 
     epoch = 1
     step = 1
+    pbar = tqdm.tqdm(total=config.num_epochs * len(train_set.file_pairs) / config.batch_size)
     while epoch <= config.num_epochs:
         x_batch, y_batch, end_of_epoch = train_set.load_batch(batch_size=config.batch_size)
         feed = {
@@ -127,8 +127,10 @@ def train(config):
             validate(sess, model, summary_val_op, summary_writer, val_set, step, config)
             break
 
+        pbar.update(1)
         step += 1
 
+    pbar.close()
     saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
 
     # clean up tf things
