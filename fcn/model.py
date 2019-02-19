@@ -3,8 +3,6 @@ from collections import namedtuple
 
 import tensorflow as tf
 import numpy as np
-# TODO replace with slim
-# import tensorflow.contrib.slim as slim
 import vapk as utils
 
 
@@ -18,8 +16,8 @@ fcn_parameters = namedtuple('parameters',
                         'type')
 
 
-class fcn32(object):
-    """fcn32 model"""
+class fcn(object):
+    """fcn model"""
 
     def __init__(self, params, reuse_variables=None):
         self.params = params
@@ -97,17 +95,14 @@ class fcn32(object):
                 h_upscore2 = utils.deconv_layer('upscore2', self.params.num_labels, 4, 2, h_score_fr)
 
                 # pool4
-                h_score_pool4 = utils.conv_layer('score_pool4', [1, 1, 512, self.params.num_labels], [1, 1, 1, 1], True, False, False,
-                                                 "SAME", h_pool4)
+                h_score_pool4 = utils.conv_layer('score_pool4', [1, 1, 512, self.params.num_labels], [1, 1, 1, 1], True, False, False, "SAME", h_pool4)
                 h_score_pool4_cropped = utils.crop_tensor(h_score_pool4, tf.shape(h_upscore2)[1], tf.shape(h_upscore2)[2])
                 h_fuse_pool4 = h_upscore2 + h_score_pool4_cropped
                 h_upscore_pool4 = utils.deconv_layer('upscore_pool4', self.params.num_labels, 4, 2, h_fuse_pool4)
 
                 # pool3
-                h_score_pool3 = utils.conv_layer('score_pool3', [1, 1, 256, self.params.num_labels], [1, 1, 1, 1], True, False, False,
-                                                 "SAME", h_pool3)
-                h_score_pool3_cropped = utils.crop_tensor(h_score_pool3, tf.shape(h_upscore_pool4)[1],
-                                                          tf.shape(h_upscore_pool4)[2])
+                h_score_pool3 = utils.conv_layer('score_pool3', [1, 1, 256, self.params.num_labels], [1, 1, 1, 1], True, False, False, "SAME", h_pool3)
+                h_score_pool3_cropped = utils.crop_tensor(h_score_pool3, tf.shape(h_upscore_pool4)[1], tf.shape(h_upscore_pool4)[2])
                 h_fuse_pool3 = h_upscore_pool4 + h_score_pool3_cropped
 
                 # h_upscore8

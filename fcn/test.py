@@ -43,7 +43,7 @@ def test(run):
         keep_prob=config.keep_prob,
         learning_rate=config.learning_rate,
         type=config.model)
-    model = fcn32(params)
+    model = fcn(params)
 
     # init summaries
     summary_writer = tf.summary.FileWriter(OUT_DIR)

@@ -2,10 +2,14 @@
 
 """
 TODO:
+* use slim: import tensorflow.contrib.slim as slim
 * model dataset as arg
 * metrics
+* progress bars for training and testing
+* run.sh (delete main ... only train.py / test.py - checkpoints)
 * Readme with results / playground readme about general guidelines
 * plot predict.py (overlay)
+* continue with training
 
 References
 * https://github.com/fpanjevic/playground/tree/master/DispNet
@@ -72,7 +76,7 @@ def train(config):
         keep_prob=config.keep_prob,
         learning_rate=config.learning_rate,
         type=config.model)
-    model = fcn32(fcn_params)
+    model = fcn(fcn_params)
 
     # init sess
     session_config = tf.ConfigProto()
