@@ -35,6 +35,7 @@ class fcn(object):
         with tf.variable_scope('input', reuse=self.reuse_variables):
             self.x = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="x")  # [batch, in_height, in_width, in_channels]
             self.y = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="y")  # [batch, in_height, in_width, in_channels]
+            # TODO: how gradient is calculated
             self.y_probability = tf.py_func(self.batch_rgb_to_probability, [self.y], tf.float32)
 
         # padding input by 100

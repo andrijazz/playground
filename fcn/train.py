@@ -2,7 +2,6 @@
 
 """
 TODO:
-* use slim: import tensorflow.contrib.slim as slim
 * model dataset as arg
 * metrics
 * Readme with results / playground readme about general guidelines
