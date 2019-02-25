@@ -1,8 +1,10 @@
 import argparse
 import json
 import tqdm
+
+from settings import *
 from model import *
-from dataloader import *
+from datasets.dataloader import *
 
 
 def test(run):
@@ -29,7 +31,7 @@ def test(run):
     config = namedtuple('parameters', config.keys())(**config)
 
     # init dataset
-    _, _, test_set = load(config.dataset)
+    _, _, test_set = load(config.dataset, DATASET_DIR)
 
     # init sess
     session_config = tf.ConfigProto()

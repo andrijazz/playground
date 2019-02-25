@@ -121,26 +121,3 @@ class CityscapesDataset(object):
         file_batch, end_of_epoch = self.iter.next(batch_size)
         x_batch, y_batch = self.__load_samples(file_batch)
         return x_batch, y_batch, end_of_epoch
-
-
-def main():
-    cityscapes_train = CityscapesDataset(
-        path_img="leftImg8bit_trainvaltest/leftImg8bit/train",
-        path_gt="gtFine_trainvaltest/gtFine/train"
-    )
-
-    step = 1
-    epoch = 1
-    batch_size = 2
-    while epoch <= 3:
-        x_batch, y_batch, end_of_epoch = cityscapes_train.load_batch(batch_size=batch_size)
-        if end_of_epoch:
-            print("Epoch {} completed".format(epoch))
-            epoch += 1
-        step += 1
-
-    print(step)
-
-
-if __name__ == "__main__":
-    main()

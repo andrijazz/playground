@@ -7,8 +7,8 @@ sys.path.insert(0, ROOT_DIR)
 
 DATASET_DIR = "/mnt/datasets"
 LOG_DIR = "/mnt/log"
-MODEL_NAME = "fcn"
-LOG_FILENAME = "fcn"
+MODEL_NAME = "dispnet"
+LOG_FILENAME = "dispnet"
 CONFIG_FILENAME = "config.json"
 debug = False
 

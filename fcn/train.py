@@ -2,31 +2,21 @@
 
 """
 TODO:
-* model dataset as arg
+* resize images during the training
 * metrics
 * Readme with results / playground readme about general guidelines
 * plot predict.py (overlay)
 * continue with training
-
-References
-* https://github.com/fpanjevic/playground/tree/master/DispNet
-* https://github.com/andrijazz/courses/blob/master/deeplearning/notes/deeplearning-4.ipynb
-* https://github.com/shelhamer/fcn.berkeleyvision.org
-* https://www.cs.toronto.edu/~frossard/post/vgg16/
-* http://deeplearning.net/tutorial/fcn_2D_segm.html
-* https://github.com/mrharicot/monodepth
-* https://danijar.com/structuring-your-tensorflow-models/
-
-Data sets
-* http://www.cvlibs.net/datasets/kitti/
-* https://www.cityscapes-dataset.com/
-
 """
+from __future__ import division, absolute_import, print_function
+
 import argparse
 import json
 import tqdm
-from dataloader import *
+
+from settings import *
 from model import *
+from datasets.dataloader import *
 
 
 def validate(sess, model, summary_op, summary_writer, val_set, step, config):
@@ -63,7 +53,7 @@ def train(config):
     logger.info("Configuration = {}".format(config))
 
     # init dataset
-    train_set, val_set, test_set = load(config.dataset)
+    train_set, val_set, _ = load(config.dataset, DATASET_DIR)
 
     # init model
     fcn_params = fcn_parameters(
