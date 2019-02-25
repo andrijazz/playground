@@ -44,7 +44,6 @@ class fcn(object):
         padded_x = tf.pad(self.x, [[0, 0], [100, 100], [100, 100], [0, 0]], "CONSTANT")
 
         with tf.variable_scope('encoder', reuse=self.reuse_variables):
-        # h_conv1_1 = slim.conv2d(padded_x, 64, [3, 3], scope='conv1_1', weights_initializer=self.initialize_weights('conv'), biases_initializer=)
             h_conv1_1 = utils.conv_layer('conv1_1', [3, 3, 3, 64], [1, 1, 1, 1], True, False, False, "SAME",  padded_x)
             h_conv1_2 = utils.conv_layer('conv1_2', [3, 3, 64, 64], [1, 1, 1, 1], True, False, False, "SAME", h_conv1_1)
             h_pool1 = utils.max_pool_2x2('pool1', h_conv1_2)

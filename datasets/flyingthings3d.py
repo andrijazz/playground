@@ -72,5 +72,6 @@ def writePFM(file, image, scale=1):
 
     image.tofile(file)
 
+
 data, scale = readPFM("/home/andrijazz/source/andrijazz/playground/datasets/flyingthings3d/FlyingThings3D_subset/train/disparity/left/0000000.pfm")
-print("cao")
+
