@@ -27,7 +27,8 @@ mnt/
 │   ├── cityscapes                  # cityscapes data
 │   ├── kitti
 ├── log
-│   ├── <run>                       # run
+│   ├── <model>
+│   |   ├── <run>                   # run 
 ```
  
 * tensor flow tricks

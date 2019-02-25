@@ -75,6 +75,7 @@ class CityscapesDataset(object):
         # sizes
         self.image_height = 1024
         self.image_width = 2048
+        self.downsize = 1
         self.num_channels = 3
 
         # labels
