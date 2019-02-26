@@ -11,6 +11,6 @@ CONFIG_FILENAME = "config.json"
 DATA_DRIVE = "/datadrive"
 
 DATASET_DIR = DATA_DRIVE + "/datasets"
-LOG_DIR = DATA_DRIVE + "/log" + "/" + MODEL_NAME
+LOG_DIR = DATA_DRIVE + "/log/" + MODEL_NAME
 debug = False
 
