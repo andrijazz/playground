@@ -1,6 +1,15 @@
+#!/usr/bin/python
+from __future__ import print_function, absolute_import, division
+
 import re
-import numpy as np
 import sys
+import os
+import glob
+import scipy
+import numpy as np
+import scipy.misc
+import vapk as utils
+import matplotlib.pyplot as plt
 
 
 # read disparity data from .pfm file
@@ -73,5 +82,92 @@ def writePFM(file, image, scale=1):
     image.tofile(file)
 
 
-data, scale = readPFM("/home/andrijazz/source/andrijazz/playground/datasets/flyingthings3d/FlyingThings3D_subset/train/disparity/left/0000000.pfm")
+class FlyingThings3D(object):
+    def __init__(self, path_img_left, path_img_right, path_gt):
 
+        # sizes
+        self.orig_image_height = 540
+        self.orig_image_width = 960
+        self.in_channels = 6        # we will pack left and right img into 3d matrix of size [h, w, 6] where left [:, :, 0:3] and right [:, :, 3:6]
+        self.downsize = 2
+
+        self.image_height = self.orig_image_height // self.downsize
+        self.image_width = self.orig_image_width // self.downsize
+
+        # paths
+        self.path_img_left = path_img_left
+        self.path_img_right = path_img_right
+
+        self.path_gt = path_gt
+        # pairs
+        self.__initialize()
+        # iters
+        self.iter = utils.BatchIterator(self.file_pairs)
+
+    def __initialize(self):
+        left_images = glob.glob(os.path.join(self.path_img_left, '*.png'))
+        data = []
+        for left_img in left_images:
+            filename = os.path.basename(left_img)
+
+            # right
+            right_img = self.path_img_right + "/" + filename
+            if not os.path.exists(right_img):
+                exit("Missing right image for instance {}".format(filename))
+
+            # disparity
+            gt_img_filename = filename.replace(r'.png', r'.pfm')
+            gt_img = self.path_gt + "/" + gt_img_filename
+            if not os.path.exists(gt_img):
+                exit("Missing disparity image for instance {}".format(filename))
+
+            data.append([left_img, right_img, gt_img])
+        self.file_pairs = data
+
+    def __load_samples(self, images):
+        """Iterates through list of images and packs them into batch of size m"""
+        m = len(images)
+        x_batch = np.empty([m, self.image_height, self.image_width, self.in_channels])
+        y_batch = np.empty([m, self.image_height, self.image_width])
+
+        for i in range(m):
+            left_img_file = images[i][0]
+            right_img_file = images[i][1]
+            disp_img_file = images[i][2]
+            left_img = scipy.misc.imread(left_img_file)
+            right_img = scipy.misc.imread(right_img_file)
+            x_batch[i, :, :, 0 : 3] = left_img[0 : self.image_height, 0 : self.image_width, :]
+            x_batch[i, :, :, 3 : 6] = right_img[0 : self.image_height, 0 : self.image_width, :]
+            disp_img, scale = readPFM(disp_img_file)
+            y_batch[i, :, :] = disp_img[0 : self.image_height, 0 : self.image_width]
+        return x_batch, y_batch
+
+    def load_batch(self, batch_size):
+        file_batch, end_of_epoch = self.iter.next(batch_size)
+        x_batch, y_batch = self.__load_samples(file_batch)
+        return x_batch, y_batch, end_of_epoch
+
+
+# x_left = scipy.misc.imread("/mnt/datasets/flyingthings3d/FlyingThings3D_subset_image_clean/train/image_clean/left/0000000.png")
+# plt.imshow(x_left)
+# plt.show()
+#
+# x_right = scipy.misc.imread("/mnt/datasets/flyingthings3d/FlyingThings3D_subset_image_clean/train/image_clean/right/0000000.png")
+# plt.imshow(x_right)
+# plt.show()
+#
+# y_left, scale_y_left = readPFM("/mnt/datasets/flyingthings3d/FlyingThings3D_subset_disparity/train/disparity/left/0000000.pfm")
+# plt.imshow(y_left)
+# plt.show()
+#
+# y_right, scale_y_right = readPFM("/mnt/datasets/flyingthings3d/FlyingThings3D_subset_disparity/train/disparity/right/0000000.pfm")
+# plt.imshow(y_right)
+# plt.show()
+
+# dataset = FlyingThings3D(path_img_left="/mnt/datasets/flyingthings3d/FlyingThings3D_subset_image_clean/train/image_clean/left",
+#                          path_img_right="/mnt/datasets/flyingthings3d/FlyingThings3D_subset_image_clean/train/image_clean/right",
+#                          path_gt="/mnt/datasets/flyingthings3d/FlyingThings3D_subset_disparity/train/disparity/left")
+# m = len(dataset.file_pairs)
+# for i in range(5):
+#     x_batch, y_batch, eoe = dataset.load_batch(3)
+#     print(i)

@@ -11,11 +11,16 @@ log/
 checkpoint
 *.data*
 *.npz
+*.tar.bz2
+*.tar.gz
 
 # check-in only .py files in datasets folder
 datasets/**/*.*
 datasets/**/README
 !datasets/**/*.py
 
-# fcn/spike.py
+# fcn ignore
 fcn/spike.py
+
+# dispnet ignore
+dispnet/dispflownet-release/

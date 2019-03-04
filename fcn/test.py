@@ -2,8 +2,8 @@ import argparse
 import json
 import tqdm
 
-from settings import *
-from model import *
+from fcn.settings import *
+from fcn.model import *
 from datasets.dataloader import *
 
 

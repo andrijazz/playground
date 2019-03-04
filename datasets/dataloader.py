@@ -1,5 +1,6 @@
 import datasets.kitti_semantics as kitti
 import datasets.cityscapes as cs
+import datasets.flyingthings3d as flying_things
 
 
 def load(dataset_name, dataset_path):
@@ -36,5 +37,20 @@ def load(dataset_name, dataset_path):
             path_gt=dataset_path + "/cityscapes/gtFine_trainvaltest/gtFine/test"
         )
         return train_set, val_set, test_set
+
+    if dataset_name == "flyingthings3d":
+        train_set = flying_things.FlyingThings3D(
+            path_img_left=dataset_path + "/flyingthings3d/FlyingThings3D_subset_image_clean/train/image_clean/left",
+            path_img_right=dataset_path + "/flyingthings3d/FlyingThings3D_subset_image_clean/train/image_clean/right",
+            path_gt=dataset_path + "/flyingthings3d/FlyingThings3D_subset_disparity/train/disparity/left"
+        )
+
+        val_set = flying_things.FlyingThings3D(
+            path_img_left=dataset_path + "/flyingthings3d/FlyingThings3D_subset_image_clean/val/image_clean/left",
+            path_img_right=dataset_path + "/flyingthings3d/FlyingThings3D_subset_image_clean/val/image_clean/right",
+            path_gt=dataset_path + "/flyingthings3d/FlyingThings3D_subset_disparity/val/disparity/left"
+        )
+
+        return train_set, val_set, None
 
     exit("Unsupported dataset")
