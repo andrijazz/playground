@@ -171,7 +171,7 @@ class DispNet(object):
             tf.summary.scalar('s_loss_5', self.loss_5, collections=["train_collection"])
 
             tf.summary.scalar('val_loss', self.loss, collections=["val_collection"])
-            tf.summary.image('val_x', self.x, max_outputs=1, collections=["val_collection"])
+            tf.summary.image('val_x', tf.slice(self.x, [0, 0, 0, 0], [-1, -1, -1, 3]), max_outputs=1, collections=["val_collection"])
             tf.summary.image('val_y', self.y, max_outputs=1, collections=["val_collection"])
             tf.summary.image('val_p', self.h_pr0, max_outputs=1, collections=["val_collection"])
             tf.summary.image('test_p', self.h_pr0, max_outputs=1, collections=["test_collection"])
