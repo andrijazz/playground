@@ -86,10 +86,11 @@ class FlyingThings3D(object):
     def __init__(self, path_img_left, path_img_right, path_gt):
 
         # sizes
-        self.orig_image_height = 540
+        # self.orig_image_height = 540
+        self.orig_image_height = 512
         self.orig_image_width = 960
         self.in_channels = 6        # we will pack left and right img into 3d matrix of size [h, w, 6] where left [:, :, 0:3] and right [:, :, 3:6]
-        self.downsize = 2
+        self.downsize = 1
 
         self.image_height = self.orig_image_height // self.downsize
         self.image_width = self.orig_image_width // self.downsize
@@ -128,7 +129,7 @@ class FlyingThings3D(object):
         """Iterates through list of images and packs them into batch of size m"""
         m = len(images)
         x_batch = np.empty([m, self.image_height, self.image_width, self.in_channels])
-        y_batch = np.empty([m, self.image_height, self.image_width])
+        y_batch = np.empty([m, self.image_height, self.image_width, 1])
 
         for i in range(m):
             left_img_file = images[i][0]
@@ -139,7 +140,7 @@ class FlyingThings3D(object):
             x_batch[i, :, :, 0 : 3] = left_img[0 : self.image_height, 0 : self.image_width, :]
             x_batch[i, :, :, 3 : 6] = right_img[0 : self.image_height, 0 : self.image_width, :]
             disp_img, scale = readPFM(disp_img_file)
-            y_batch[i, :, :] = disp_img[0 : self.image_height, 0 : self.image_width]
+            y_batch[i, :, :, 0] = disp_img[0 : self.image_height, 0 : self.image_width]
         return x_batch, y_batch
 
     def load_batch(self, batch_size):
