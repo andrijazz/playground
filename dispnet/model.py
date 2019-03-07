@@ -28,7 +28,6 @@ def deconv_layer(name, in_ch, out_ch, kernel_size, stride, relu, batch_norm, x):
         new_shape = tf.stack([in_shape[0], h, w, out_ch])
         h_deconv = tf.nn.conv2d_transpose(x, W, new_shape, strides=strides, padding='SAME', name=name) + b
 
-
         if batch_norm:
             h_deconv = tf.contrib.layers.batch_norm(h_deconv)
 
@@ -46,6 +45,7 @@ class DispNet(object):
         self.reuse_variables = reuse_variables
         self.__build_model()
         self.__build_loss()
+        self.__build_metrics()
         self.__build_summaries()
 
     # TODO: Ask Filip
@@ -54,18 +54,18 @@ class DispNet(object):
             self.x = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, self.params.in_channels], name="x")     # [batch, in_height, in_width, in_channels]
             self.y = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 1], name="y")                           # [batch, in_height, in_width, 1]
 
-        with tf.variable_scope('contracting', reuse=self.reuse_variables):
+        with tf.variable_scope('encoder', reuse=self.reuse_variables):
             self.h_conv1 = utils.conv_layer (name='conv1',  shape=[7, 7, 6, 64],     stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.x)
             self.h_conv2 = utils.conv_layer (name='conv2',  shape=[5, 5, 64, 128],   stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv1)
             self.h_conv3a = utils.conv_layer(name='conv3a', shape=[5, 5, 128, 256],  stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv2)
             self.h_conv3b = utils.conv_layer(name='conv3b', shape=[3, 3, 256, 256],  stride=[1, 1, 1, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv3a)
-            self.h_conv4a = utils.conv_layer(name='conv4a', shape=[5, 5, 256, 512],  stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv3b)
+            self.h_conv4a = utils.conv_layer(name='conv4a', shape=[3, 3, 256, 512],  stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv3b)
             self.h_conv4b = utils.conv_layer(name='conv4b', shape=[3, 3, 512, 512],  stride=[1, 1, 1, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv4a)
-            self.h_conv5a = utils.conv_layer(name='conv5a', shape=[5, 5, 512, 512],  stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv4b)
+            self.h_conv5a = utils.conv_layer(name='conv5a', shape=[3, 3, 512, 512],  stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv4b)
             self.h_conv5b = utils.conv_layer(name='conv5b', shape=[3, 3, 512, 512],  stride=[1, 1, 1, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv5a)
-            self.h_conv6a = utils.conv_layer(name='conv6a', shape=[5, 5, 512, 1024], stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv5b)
+            self.h_conv6a = utils.conv_layer(name='conv6a', shape=[3, 3, 512, 1024], stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv5b)
             self.h_conv6b = utils.conv_layer(name='conv6b', shape=[3, 3, 1024, 1024],stride=[1, 1, 1, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv6a)
-        with tf.variable_scope('expanding', reuse=self.reuse_variables):
+        with tf.variable_scope('decoder', reuse=self.reuse_variables):
             # pr6
             self.h_pr6 = utils.conv_layer(name='pr6', shape=[3, 3, 1024, 1], stride=[1, 1, 1, 1], relu=False, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv6b)
             self.h_upconv5 = deconv_layer(name='upconv5', in_ch=1024, out_ch=512, kernel_size=4, stride=2, relu=True, batch_norm=False, x=self.h_conv6b)
@@ -99,47 +99,10 @@ class DispNet(object):
             # pr0
             self.h_pr0 = utils.conv_layer(name='pr0', shape=[3, 3, 16, 1], stride=[1, 1, 1, 1], relu=False, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv0)
 
-    # def __build_model(self):
-    #     with tf.variable_scope('input', reuse=self.reuse_variables):
-    #         self.x = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, self.params.in_channels], name="x")     # [batch, in_height, in_width, in_channels]
-    #         self.y = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 1], name="y")                           # [batch, in_height, in_width, 1]
-    #
-    #     with tf.variable_scope('contracting', reuse=self.reuse_variables):
-    #         self.h_conv1 = utils.conv_layer (name='conv1',  shape=[7, 7, 6, 64],     stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.x)
-    #         self.h_conv2 = utils.conv_layer (name='conv2',  shape=[5, 5, 64, 128],   stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv1)
-    #         self.h_conv3a = utils.conv_layer(name='conv3a', shape=[5, 5, 128, 256],  stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv2)
-    #         self.h_conv3b = utils.conv_layer(name='conv3b', shape=[3, 3, 256, 256],  stride=[1, 1, 1, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv3a)
-    #         self.h_conv4a = utils.conv_layer(name='conv4a', shape=[3, 3, 256, 512],  stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv3b)
-    #         self.h_conv4b = utils.conv_layer(name='conv4b', shape=[3, 3, 512, 512],  stride=[1, 1, 1, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv4a)
-    #         self.h_conv5a = utils.conv_layer(name='conv5a', shape=[3, 3, 512, 512],  stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv4b)
-    #         self.h_conv5b = utils.conv_layer(name='conv5b', shape=[3, 3, 512, 512],  stride=[1, 1, 1, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv5a)
-    #         self.h_conv6a = utils.conv_layer(name='conv6a', shape=[3, 3, 512, 1024], stride=[1, 2, 2, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv5b)
-    #         self.h_conv6b = utils.conv_layer(name='conv6b', shape=[3, 3, 1024, 1024],stride=[1, 1, 1, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv6a)
-    #     with tf.variable_scope('expanding', reuse=self.reuse_variables):
-    #         # pr6
-    #         self.h_pr6 = utils.conv_layer(name='pr6', shape=[3, 3, 1024, 1], stride=[1, 1, 1, 1], relu=False, batch_norm=False, dropout=False, padding="SAME", x=self.h_conv6b)
-    #         self.h_upconv5 = deconv_layer(name='upconv5', in_ch=1024, out_ch=512, kernel_size=4, stride=2, relu=True, batch_norm=False, x=self.h_conv6b)
-    #         self.h_iconv5 = utils.conv_layer(name='iconv5', shape=[3, 3, 1025, 512], stride=[1, 1, 1, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=tf.concat([self.h_upconv5, self.h_pr6, self.h_conv5b], axis=3))
-    #         # pr5
-    #         self.h_pr5 = utils.conv_layer(name='pr5', shape=[3, 3, 512, 1], stride=[1, 1, 1, 1], relu=False, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv5)
-    #         self.h_upconv4 = deconv_layer(name='upconv4', in_ch=512, out_ch=256, kernel_size=4, stride=2, relu=True, batch_norm=False, x=self.h_iconv5)
-    #         self.h_iconv4 = utils.conv_layer(name='iconv4', shape=[3, 3, 769, 256], stride=[1, 1, 1, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=tf.concat([self.h_upconv4, self.h_pr5, self.h_conv4b], axis=3))
-    #         # pr4
-    #         self.h_pr4 = utils.conv_layer(name='pr4', shape=[3, 3, 256, 1], stride=[1, 1, 1, 1], relu=False, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv4)
-    #         self.h_upconv3 = deconv_layer(name='upconv3', in_ch=256, out_ch=128, kernel_size=4, stride=2, relu=True, batch_norm=False, x=self.h_iconv4)
-    #         self.h_iconv3 = utils.conv_layer(name='iconv3', shape=[3, 3, 385, 128], stride=[1, 1, 1, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=tf.concat([self.h_upconv3, self.h_pr4, self.h_conv3b], axis=3))
-    #         # pr3
-    #         self.h_pr3 = utils.conv_layer(name='pr3', shape=[3, 3, 128, 1], stride=[1, 1, 1, 1], relu=False, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv3)
-    #         self.h_upconv2 = deconv_layer(name='upconv2', in_ch=128, out_ch=64, kernel_size=4, stride=2, relu=True, batch_norm=False, x=self.h_iconv3)
-    #         self.h_iconv2 = utils.conv_layer(name='iconv2', shape=[3, 3, 193, 64], stride=[1, 1, 1, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=tf.concat([self.h_upconv2, self.h_pr3, self.h_conv2], axis=3))
-    #         # pr2
-    #         self.h_pr2 = utils.conv_layer(name='pr2', shape=[3, 3, 64, 1], stride=[1, 1, 1, 1], relu=False, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv2)
-    #         self.h_upconv1 = deconv_layer(name='upconv1', in_ch=64, out_ch=32, kernel_size=4, stride=2, relu=True, batch_norm=False, x=self.h_iconv2)
-    #         self.h_iconv1 = utils.conv_layer(name='iconv1', shape=[3, 3, 97, 32], stride=[1, 1, 1, 1], relu=True, batch_norm=False, dropout=False, padding="SAME", x=tf.concat([self.h_upconv1, self.h_pr2, self.h_conv1], axis=3))
-    #         # pr1
-    #         self.h_pr1 = utils.conv_layer(name='pr1', shape=[3, 3, 32, 1], stride=[1, 1, 1, 1], relu=False, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv1)
-
     def __build_loss(self):
+        # Adam beta_1 = 0.9, beta_2 = 0.999
+        # learning_rate = 1e-4
+        # devide learning_rate by 2 every 200000 steps starting from 400000
         with tf.variable_scope('loss', reuse=self.reuse_variables):
             shape = tf.shape(self.y)
 
@@ -160,6 +123,14 @@ class DispNet(object):
             self.opt = tf.train.AdamOptimizer(learning_rate=self.params.learning_rate, name="opt")
             self.goal = self.opt.minimize(self.loss, name="goal")
 
+    def __build_metrics(self):
+        self.endpoint_err = tf.norm(self.y - self.h_pr0)
+        # D1-all error measure is reported by the KITTI evaluation
+        # server. It is the percentage of pixels for which the
+        # estimation error is larger than 3px and larger than 5% of the
+        # ground truth disparity at this pixel.
+        # self.d1_all =
+
     def __build_summaries(self):
         with tf.device('/cpu:0'):
             tf.summary.scalar('s_loss_total', self.loss, collections=["train_collection"])
@@ -174,5 +145,8 @@ class DispNet(object):
             tf.summary.image('val_x', tf.slice(self.x, [0, 0, 0, 0], [-1, -1, -1, 3]), max_outputs=1, collections=["val_collection"])
             tf.summary.image('val_y', self.y, max_outputs=1, collections=["val_collection"])
             tf.summary.image('val_p', self.h_pr0, max_outputs=1, collections=["val_collection"])
-            tf.summary.image('test_p', self.h_pr0, max_outputs=1, collections=["test_collection"])
 
+            # tf.summary.scalar('endpoint_err', self.endpoint_err, collections=["test_collection"])
+            tf.summary.image('test_x', tf.slice(self.x, [0, 0, 0, 0], [-1, -1, -1, 3]), max_outputs=1, collections=["test_collection"])
+            tf.summary.image('test_y', self.y, max_outputs=1, collections=["test_collection"])
+            tf.summary.image('test_p', self.h_pr0, max_outputs=1, collections=["test_collection"])

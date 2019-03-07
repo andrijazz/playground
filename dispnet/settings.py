@@ -11,5 +11,6 @@ DATA_DRIVE = "/mnt"
 
 DATASET_DIR = DATA_DRIVE + "/datasets"
 LOG_DIR = DATA_DRIVE + "/log/" + MODEL_NAME
-debug = False
+
+debug_steps = 100
 

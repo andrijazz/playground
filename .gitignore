@@ -24,3 +24,10 @@ fcn/spike.py
 
 # dispnet ignore
 dispnet/dispflownet-release/
+
+# ignore latex files
+*.aux
+*.log
+*.synctex.gz
+*.out
+*.pdf

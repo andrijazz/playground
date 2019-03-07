@@ -10,7 +10,6 @@ from dispnet.settings import *
 from dispnet.model import *
 from datasets.dataloader import *
 
-
 # def validate(sess, model, summary_op, summary_writer, val_set, step, config):
 #     """Validates on a single batch"""
 #     x_batch, y_batch, end_of_epoch = val_set.load_batch(batch_size=config.batch_size)
@@ -97,13 +96,15 @@ def train(config):
         if step % 10000 == 0:
             saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
 
-        if debug:
+        if step < debug_steps:
             summary_str = sess.run(summary_train_op, feed_dict=feed)
             summary_writer.add_summary(summary_str, global_step=step)
 
             # val
             summary_str = sess.run(summary_val_op, feed_dict=feed)
             summary_writer.add_summary(summary_str, global_step=step)
+
+        if step == debug_steps:
             break
 
         pbar.update(1)
@@ -129,7 +130,7 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--dataset', type=str, help='flyingthings3d', default='flyingthings3d')
     parser.add_argument('-b', '--batch_size', type=int, help='batch size', default=2)
     parser.add_argument('-n', '--num_epochs', type=int, help='number of epochs', default=50)
-    parser.add_argument('-l', '--learning_rate', type=float, help='learning rate', default=1e-3)
+    parser.add_argument('-l', '--learning_rate', type=float, help='learning rate', default=1e-4)
     parser.add_argument('-g', '--gpu', type=int, help='GPU to use for training', default=1)
     parser.add_argument('-k', '--keep_prob', type=float, help='dropout keep prob. default is 0.5.', default=float(0.5))
     args = parser.parse_args()
