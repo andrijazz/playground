@@ -31,3 +31,4 @@ dispnet/dispflownet-release/
 *.synctex.gz
 *.out
 *.pdf
+*.dvi
