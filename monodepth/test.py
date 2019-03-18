@@ -1,10 +1,13 @@
 import argparse
 import json
 import tqdm
+import vapk as utils
+import numpy as np
 
-from dispnet.settings import *
-from dispnet.model import *
+from monodepth.settings import *
+from monodepth.model import *
 from datasets.dataloader import *
+from utils import metrics
 
 
 def test(run):
@@ -31,25 +34,28 @@ def test(run):
     config = namedtuple('parameters', config.keys())(**config)
 
     # init dataset
-    _, test_set, _ = load(config.dataset, DATASET_DIR)
+    _, _, test_set = load("kitti_scene_flow", DATASET_DIR)
 
     # init sess
     session_config = tf.ConfigProto()
     sess = tf.Session(config=session_config)
 
     # init model
-    dispnet_params = dispnet_parameters(
+    monodepth_params = monodepth_parameters(
         image_height=test_set.image_height,
         image_width=test_set.image_width,
-        in_channels=test_set.in_channels,
-        keep_prob=config.keep_prob,
-        learning_rate=config.learning_rate)
-    model = DispNet(dispnet_params)
+        in_channels=test_set.num_channels,
+        learning_rate=config.learning_rate,
+        alpha_image_loss=config.alpha_image_loss,
+        disp_gradient_loss_weight=config.disp_loss,
+        lr_loss_weight=config.lr_loss
+    )
+    model = Monodepth(monodepth_params)
 
     # init summaries
     summary_writer = tf.summary.FileWriter(OUT_DIR)
     summary_writer.add_graph(sess.graph)
-    summary_test_op = tf.summary.merge_all('test_collection')
+    summary_test_op = tf.summary.merge_all('val_collection')
 
     # init saver
     saver = tf.train.Saver()
@@ -65,15 +71,24 @@ def test(run):
     logger.info("Testing started")
     step = 1
     pbar = tqdm.tqdm(total=len(test_set.file_pairs))
+
+    rse = list()
+    abs_rel = list()
+    rmse = list()
+    rmse_log = list()
     while True:
-        x_batch, y_batch, end_of_epoch = test_set.load_batch(batch_size=1)
+        left_batch, right_batch, gt_batch, end_of_epoch = test_set.load_batch(batch_size=1)
         feed = {
-            model.x: x_batch,
-            model.y: y_batch,
+            model.left: left_batch
         }
 
         summary_str = sess.run(summary_test_op, feed_dict=feed)
         summary_writer.add_summary(summary_str, global_step=step)
+
+        rse.extend(metrics.rse(left_batch, gt_batch))
+        abs_rel.extend(metrics.abs_rel(left_batch, gt_batch))
+        rmse.extend(metrics.rmse(left_batch, gt_batch))
+        rmse_log.extend(metrics.rmse_log(left_batch, gt_batch))
 
         if end_of_epoch:
             break
@@ -85,7 +100,13 @@ def test(run):
         pbar.update(1)
     pbar.close()
 
-    # np.save(OUT_DIR + "/results.npy", results)
+    result = np.zeros(len(test_set.file_pairs), 4)
+    result[:, 0] = rse
+    result[:, 1] = abs_rel
+    result[:, 2] = rmse
+    result[:, 3] = rmse_log
+
+    np.save(OUT_DIR + "/result.npy", result)
 
     # clean up tf things
     sess.close()
@@ -97,7 +118,7 @@ def main(_):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='DispNet TensorFlow implementation [Testing]')
+    parser = argparse.ArgumentParser(description='Monodepth - TensorFlow implementation [Testing]')
     parser.add_argument('-r', '--run', type=str, help='run', required=True)
     args = parser.parse_args()
 
