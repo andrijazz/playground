@@ -11,13 +11,18 @@ from monodepth.settings import *
 from monodepth.model import *
 from datasets.dataloader import *
 
+# TODO dataset kitti
+# TODO dataset cs
+# TODO metrics
+# TODO add resnet encoder
 
-def validate(sess, model, summary_op, summary_writer, val_set, step, config):
+
+def validate(sess, model, summary_op, summary_writer, val_set, step):
     """Validates on a single batch"""
-    x_batch, y_batch, end_of_epoch = val_set.load_batch(batch_size=config.batch_size)
+    left_batch, right_batch, end_of_epoch = val_set.load_batch(batch_size=1)
     feed = {
-        model.x: x_batch,
-        model.y: y_batch
+        model.left: left_batch,
+        model.right: right_batch
     }
 
     summary_str = sess.run(summary_op, feed_dict=feed)
@@ -52,9 +57,12 @@ def train(config):
     monodepth_params = monodepth_parameters(
         image_height=train_set.image_height,
         image_width=train_set.image_width,
-        in_channels=train_set.in_channels,
-        keep_prob=config.keep_prob,
-        learning_rate=config.learning_rate)
+        in_channels=train_set.num_channels,
+        learning_rate=config.learning_rate,
+        alpha_image_loss=config.alpha_image_loss,
+        disp_gradient_loss_weight=config.disp_loss,
+        lr_loss_weight=config.lr_loss
+    )
     model = Monodepth(monodepth_params)
 
     # init sess
@@ -80,12 +88,14 @@ def train(config):
     step = 1
     pbar = tqdm.tqdm(total=config.num_epochs * len(train_set.file_pairs) / config.batch_size)
     while epoch <= config.num_epochs:
-        x_batch, y_batch, end_of_epoch = train_set.load_batch(batch_size=config.batch_size)
+        left_batch, right_batch, end_of_epoch = train_set.load_batch(batch_size=config.batch_size)
         feed = {
-            model.left: x_batch,
-            model.right: y_batch
+            model.left: left_batch,
+            model.right: right_batch
         }
+
         sess.run(model.goal, feed_dict=feed)
+
         if end_of_epoch:
             epoch += 1
 
@@ -103,8 +113,7 @@ def train(config):
             summary_writer.add_summary(summary_str, global_step=step)
 
             # val
-            summary_str = sess.run(summary_val_op, feed_dict=feed)
-            summary_writer.add_summary(summary_str, global_step=step)
+            validate(sess, model, summary_val_op, summary_writer, val_set, step)
 
         if step == debug_steps:
             break
@@ -129,12 +138,14 @@ def main(_):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Monodepth - TensorFlow implementation [Training]')
 
-    parser.add_argument('-d', '--dataset', type=str, help='kitti', default='kitti')
+    parser.add_argument('-d', '--dataset', type=str, help='kitti_raw or cityscapes', default='kitti_raw')
     parser.add_argument('-b', '--batch_size', type=int, help='batch size', default=2)
     parser.add_argument('-n', '--num_epochs', type=int, help='number of epochs', default=50)
     parser.add_argument('-l', '--learning_rate', type=float, help='learning rate', default=1e-4)
+    parser.add_argument('--alpha_image_loss', type=float, help='alpha image loss', default=0.85)
+    parser.add_argument('--disp_loss', type=float, help='disp gradient loss weight', default=0.1)
+    parser.add_argument('--lr_loss', type=float, help='lr loss weight', default=1.0)
     parser.add_argument('-g', '--gpu', type=int, help='GPU to use for training', default=1)
-    parser.add_argument('-k', '--keep_prob', type=float, help='dropout keep prob. default is 0.5.', default=float(0.5))
     args = parser.parse_args()
 
     tf.app.run()
