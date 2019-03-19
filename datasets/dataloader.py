@@ -70,6 +70,12 @@ def load(dataset_name, dataset_path):
         )
         return train_set, val_set, test_set
 
+        # train_set = kitti_raw.KittiRaw(
+        #     data_path=dataset_path + "/kitti/data_scene_flow",
+        #     file_list=dataset_path + "/kitti/kitti_stereo_2015_test_files.txt"
+        # )
+        # return train_set, None, None
+
     if dataset_name == "kitti_scene_flow":
         test_set = kitti_scene_flow.KittiSceneFlow(
             lr_path=dataset_path + "/kitti/data_scene_flow",
