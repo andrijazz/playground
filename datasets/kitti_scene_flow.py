@@ -1,30 +1,28 @@
 #!/usr/bin/python
 from __future__ import print_function, absolute_import, division
 
-import os
-import glob
 import scipy
 import numpy as np
 import scipy.misc
 import vapk as utils
+import cv2
 
 
 class KittiSceneFlow(object):
-    def __init__(self,
-                 path_img,
-                 path_gt):
+    def __init__(self, lr_path, lr_files, disp_path):
 
         # sizes
-        self.orig_image_height = 370
-        self.orig_image_width = 1224
+        self.orig_image_height = 375
+        self.orig_image_width = 1242
 
         self.image_height = 256
         self.image_width = 512
         self.num_channels = 3
 
         # paths
-        self.path_img = path_img
-        self.path_gt = path_gt
+        self.lr_path = lr_path
+        self.lr_files = lr_files
+        self.disp_path = disp_path
 
         # pairs
         self.__initialize()
@@ -33,26 +31,27 @@ class KittiSceneFlow(object):
         self.iter = utils.BatchIterator(self.file_pairs)
 
     def __initialize(self):
-        left_files = glob.glob(os.path.join(self.path_img, '*_10.png'))
-        data = []
-        for left_file in left_files:
-            filename = os.path.basename(left_file)
-            right_file = self.path_img + "/" + filename[:-7] + "_11.png"
-            gt_left_file = self.path_gt + "/" + filename
-            data.append([left_file, right_file, gt_left_file])
-        self.file_pairs = data
+        self.file_pairs = list()
+        with open(self.lr_files) as f:
+            for line in f:
+                line = line.rstrip()        # strip trailing \n
+                line = line.replace(".jpg", ".png")
+                images = line.rstrip().split(' ')
+
+                filename = images[0].split('/')[-1]
+                self.file_pairs.append([self.lr_path + "/" + images[0], self.lr_path + "/" + images[1], self.disp_path + "/" + filename])
 
     def __load_samples(self, file_batch):
         """Iterates through list of images and packs them into batch of size m"""
         m = len(file_batch)
         left_batch = np.empty([m, self.image_height, self.image_width, self.num_channels])
         right_batch = np.empty([m, self.image_height, self.image_width, self.num_channels])
-        gt_left_batch = np.empty([m, self.image_height, self.image_width, 1])
+        disp_batch = np.empty([m, self.orig_image_height, self.orig_image_height])
 
         for i in range(m):
             left_file = file_batch[i][0]
             right_file = file_batch[i][1]
-            gt_left_file = file_batch[i][2]
+            disp_file = file_batch[i][2]
 
             left = scipy.misc.imread(left_file)
             left = scipy.misc.imresize(left, (self.image_height, self.image_width), interp="bilinear")
@@ -62,16 +61,17 @@ class KittiSceneFlow(object):
             right = scipy.misc.imresize(right, (self.image_height, self.image_width), interp="bilinear")
             right_batch[i] = right
 
-            gt_left = scipy.misc.imread(gt_left_file)
-            gt_left = scipy.misc.imresize(gt_left, (self.image_height, self.image_width), interp="nearest")
-            gt_left_batch[i] = gt_left.reshape((self.image_height, self.image_width, 1))
+            disp = cv2.imread(disp_file)
+            disp = disp.astype(np.float32) / 256
+            disp = scipy.misc.imresize(disp, (self.orig_image_height, self.orig_image_width), interpolation=cv2.INTER_LINEAR)
+            disp_batch[i] = disp.reshape((self.orig_image_height, self.orig_image_width))
 
-        return left_batch, right_batch, gt_left_batch
+        return left_batch, right_batch, disp_batch
 
     def load_batch(self, batch_size):
         file_batch, end_of_epoch = self.iter.next(batch_size)
-        left_batch, right_batch, gt_left_batch = self.__load_samples(file_batch)
-        return left_batch, right_batch, gt_left_batch, end_of_epoch
+        left_batch, right_batch, disp_batch = self.__load_samples(file_batch)
+        return left_batch, right_batch, disp_batch, end_of_epoch
 
 
 # if __name__ == '__main__':

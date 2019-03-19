@@ -1,7 +1,7 @@
 import datasets.kitti_semantics as kitti
 import datasets.cityscapes as cs
 import datasets.flyingthings3d as flying_things
-# import datasets.kitti_scene_flow as kitti_scene_flow
+import datasets.kitti_scene_flow as kitti_scene_flow
 import datasets.kitti_raw as kitti_raw
 
 
@@ -71,9 +71,10 @@ def load(dataset_name, dataset_path):
         return train_set, val_set, test_set
 
     if dataset_name == "kitti_scene_flow":
-        test_set = kitti_raw.KittiRaw(
-            data_path=dataset_path + "/kitti/data_scene_flow",
-            file_list=dataset_path + "/kitti/kitti_stereo_2015_test_files.txt"
+        test_set = kitti_scene_flow.KittiSceneFlow(
+            lr_path=dataset_path + "/kitti/data_scene_flow",
+            lr_files=dataset_path + "/kitti/kitti_stereo_2015_test_files.txt",
+            disp_path=dataset_path + "/kitti/data_scene_flow/training/disp_noc_0"
         )
         return None, None, test_set
 

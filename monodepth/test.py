@@ -3,11 +3,43 @@ import json
 import tqdm
 import vapk as utils
 import numpy as np
+import cv2
 
 from monodepth.settings import *
 from monodepth.model import *
 from datasets.dataloader import *
 from utils import metrics
+
+# kitti
+width_to_focal = dict()
+width_to_focal[1242] = 721.5377
+width_to_focal[1241] = 718.856
+width_to_focal[1224] = 707.0493
+width_to_focal[1238] = 718.3351
+
+
+def convert_disps_to_depths_kitti(gt_disparities, pred_disparities):
+    gt_depths = []
+    pred_depths = []
+    pred_disparities_resized = []
+
+    for i in range(len(gt_disparities)):
+        gt_disp = gt_disparities[i]
+        height, width = gt_disp.shape
+
+        pred_disp = pred_disparities[i]
+        pred_disp = width * cv2.resize(pred_disp, (width, height), interpolation=cv2.INTER_LINEAR)
+
+        pred_disparities_resized.append(pred_disp)
+
+        mask = gt_disp > 0
+
+        gt_depth = width_to_focal[width] * 0.54 / (gt_disp + (1.0 - mask))
+        pred_depth = width_to_focal[width] * 0.54 / pred_disp
+
+        gt_depths.append(gt_depth)
+        pred_depths.append(pred_depth)
+    return gt_depths, pred_depths, pred_disparities_resized
 
 
 def test(run):
@@ -69,13 +101,20 @@ def test(run):
     saver.restore(sess, restore_path)
 
     logger.info("Testing started")
-    step = 1
-    pbar = tqdm.tqdm(total=len(test_set.file_pairs))
+    i = 1
+    num_samples = len(test_set.file_pairs)
+    pbar = tqdm.tqdm(total=num_samples)
 
-    rse = list()
-    abs_rel = list()
-    rmse = list()
-    rmse_log = list()
+    rse       = np.zeros(num_samples, np.float32)
+    abs_rel   = np.zeros(num_samples, np.float32)
+    rmse      = np.zeros(num_samples, np.float32)
+    rmse_log  = np.zeros(num_samples, np.float32)
+
+    # d1_all  = np.zeros(num_samples, np.float32)
+    # a1      = np.zeros(num_samples, np.float32)
+    # a2      = np.zeros(num_samples, np.float32)
+    # a3      = np.zeros(num_samples, np.float32)
+
     while True:
         left_batch, right_batch, gt_batch, end_of_epoch = test_set.load_batch(batch_size=1)
         feed = {
@@ -83,29 +122,28 @@ def test(run):
         }
 
         summary_str = sess.run(summary_test_op, feed_dict=feed)
-        summary_writer.add_summary(summary_str, global_step=step)
+        summary_writer.add_summary(summary_str, global_step=i)
 
-        rse.extend(metrics.rse(left_batch, gt_batch))
-        abs_rel.extend(metrics.abs_rel(left_batch, gt_batch))
-        rmse.extend(metrics.rmse(left_batch, gt_batch))
-        rmse_log.extend(metrics.rmse_log(left_batch, gt_batch))
+        rse[i] = metrics.rse(left_batch, gt_batch)
+        abs_rel[i] = metrics.abs_rel(left_batch, gt_batch)
+        rmse[i] = metrics.rmse(left_batch, gt_batch)
+        rmse_log[i] = metrics.rmse_log(left_batch, gt_batch)
 
         if end_of_epoch:
             break
 
-        if step == debug_steps:
+        if i == debug_steps:
             break
 
-        step += 1
+        i += 1
         pbar.update(1)
     pbar.close()
 
-    result = np.zeros(len(test_set.file_pairs), 4)
-    result[:, 0] = rse
-    result[:, 1] = abs_rel
-    result[:, 2] = rmse
-    result[:, 3] = rmse_log
-
+    result = np.zeros((num_samples, 4), np.float32)
+    result[0] = rse
+    result[1] = abs_rel
+    result[2] = rmse
+    result[3] = rmse_log
     np.save(OUT_DIR + "/result.npy", result)
 
     # clean up tf things

@@ -7,8 +7,7 @@ def rse(p, gt):
     m = np.shape(p)[0]
     rse = list()
     for i in range(m):
-        gt_avg = np.mean(gt[i])
-        rse.append(np.sum(np.square(p[i] - gt[i]) / np.square(gt_avg - gt[i])))
+        rse.append(np.sum(np.square(p[i] - gt[i]) / gt[i]))
     return rse
 
 
@@ -18,8 +17,7 @@ def abs_rel(p, gt):
     m = np.shape(p)[0]
     abs_rel = list()
     for i in range(m):
-        gt_avg = np.mean(gt[i])
-        abs_rel.append(np.sum(np.abs(p[i] - gt[i]) / np.abs(gt_avg - gt[i])))
+        abs_rel.append(np.sum(np.abs(p[i] - gt[i]) / gt[i]))
     return abs_rel
 
 
@@ -52,6 +50,4 @@ def rmse_log(p, gt):
     for i in range(m):
         rmse_log.append(np.sqrt(np.mean(np.square(np.log(p[i]) - np.log(gt[i])))))
     return rmse_log
-
-
 
