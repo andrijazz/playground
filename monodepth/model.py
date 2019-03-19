@@ -133,6 +133,9 @@ class Monodepth(object):
     def __build_summaries(self):
         with tf.device('/cpu:0'):
             for i in range(4):
+
+                tf.summary.scalar('total_loss', self.total_loss, collections=["train_collection"])
+
                 tf.summary.scalar('ssim_loss_' + str(i), self.ssim_loss_left[i] + self.ssim_loss_right[i], collections=["train_collection"])
                 tf.summary.scalar('l1_loss_' + str(i), self.l1_reconstruction_loss_left[i] + self.l1_reconstruction_loss_right[i], collections=["train_collection"])
                 tf.summary.scalar('image_loss_' + str(i), self.image_loss_left[i] + self.image_loss_right[i], collections=["train_collection"])
