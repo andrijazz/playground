@@ -213,12 +213,11 @@ class Monodepth(object):
                 tf.summary.image('l1_left_'  + str(i), self.l1_left[i],  max_outputs=1, collections=["train_collection"])
                 tf.summary.image('l1_right_' + str(i), self.l1_right[i], max_outputs=1, collections=["train_collection"])
 
-                tf.summary.image('left',  self.left,   max_outputs=1, collections=["train_collection"])
-                tf.summary.image('right', self.right,  max_outputs=1, collections=["train_collection"])
-
+            tf.summary.image('left',  self.left,   max_outputs=1, collections=["train_collection"])
+            tf.summary.image('right', self.right,  max_outputs=1, collections=["train_collection"])
             tf.summary.scalar('total_loss', self.total_loss, collections=["train_collection"])
 
-            tf.summary.image('left',  self.left, collections=["val_collection"])
-            tf.summary.image('disp_left_est', self.disp_left_est[0], collections=["val_collection"])
+            tf.summary.image('val_left',  self.left,   max_outputs=1, collections=["val_collection"])
+            tf.summary.image('val_disp_left_est', self.disp_left_est[0],  max_outputs=1, collections=["val_collection"])
 
 

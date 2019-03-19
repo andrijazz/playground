@@ -99,12 +99,13 @@ def train(config):
         if end_of_epoch:
             epoch += 1
 
-        if step % 10 == 0:
+        if step % 50 == 0:
             summary_str = sess.run(summary_train_op, feed_dict=feed)
             summary_writer.add_summary(summary_str, global_step=step)
-        if step % 50 == 0:
-            summary_str = sess.run(summary_val_op, feed_dict=feed)
-            summary_writer.add_summary(summary_str, global_step=step)
+
+        if step % 100 == 0:
+            validate(sess, model, summary_val_op, summary_writer, val_set, step)
+
         if step % 10000 == 0:
             saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
 
