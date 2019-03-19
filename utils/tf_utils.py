@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-def deconv_layer(name, in_ch, out_ch, kernel_size, stride, relu, batch_norm, x):
+def deconv_layer(name, in_ch, out_ch, kernel_size, stride, relu, elu, batch_norm, x):
     strides = [1, stride, stride, 1]
     filter_shape = [kernel_size, kernel_size, out_ch, in_ch]    # [4, 4, 512, 1024]
     with tf.variable_scope(name):
@@ -19,6 +19,9 @@ def deconv_layer(name, in_ch, out_ch, kernel_size, stride, relu, batch_norm, x):
 
         if relu:
             h_deconv = tf.nn.relu(h_deconv)
+
+        if elu:
+            h_deconv = tf.nn.elu(h_deconv)
 
     return h_deconv
 
