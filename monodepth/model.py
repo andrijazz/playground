@@ -75,7 +75,6 @@ monodepth_parameters = namedtuple('parameters',
                         'image_height, '
                         'image_width, '
                         'in_channels, '
-                        'learning_rate, '
                         'alpha_image_loss, '
                         'disp_gradient_loss_weight, '
                         'lr_loss_weight, ')
@@ -94,6 +93,8 @@ class Monodepth(object):
         with tf.variable_scope('input', reuse=self.reuse_variables):
             self.left = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, self.params.in_channels], name="left")     # [batch, in_height, in_width, in_channels]
             self.right = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, self.params.in_channels], name="right")
+            self.learning_rate = tf.placeholder(tf.float32)
+
             self.left_pyramid = scale_pyramid(self.left, 4)
             self.right_pyramid = scale_pyramid(self.right, 4)
             self.input = self.left          # tf.concat(self.left, self.right, 3)
@@ -192,7 +193,7 @@ class Monodepth(object):
 
             # total loss
             self.total_loss = self.image_loss + self.params.disp_gradient_loss_weight * self.disp_gradient_loss + self.params.lr_loss_weight * self.lr_loss
-            self.opt = tf.train.AdamOptimizer(learning_rate=self.params.learning_rate, name="opt")
+            self.opt = tf.train.AdamOptimizer(learning_rate=self.learning_rate, name="opt")
             self.goal = self.opt.minimize(self.total_loss, name="goal")
 
     def __build_summaries(self):

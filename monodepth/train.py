@@ -17,12 +17,13 @@ from datasets.dataloader import *
 # TODO add resnet encoder
 
 
-def validate(sess, model, summary_op, summary_writer, val_set, step):
+def validate(sess, model, summary_op, summary_writer, val_set, step, config):
     """Validates on a single batch"""
     left_batch, right_batch, end_of_epoch = val_set.load_batch(batch_size=1)
     feed = {
         model.left: left_batch,
-        model.right: right_batch
+        model.right: right_batch,
+        model.learning_rate: config.learning_rate
     }
 
     summary_str = sess.run(summary_op, feed_dict=feed)
@@ -58,7 +59,6 @@ def train(config):
         image_height=train_set.image_height,
         image_width=train_set.image_width,
         in_channels=train_set.num_channels,
-        learning_rate=config.learning_rate,
         alpha_image_loss=config.alpha_image_loss,
         disp_gradient_loss_weight=config.disp_loss,
         lr_loss_weight=config.lr_loss
@@ -91,7 +91,8 @@ def train(config):
         left_batch, right_batch, end_of_epoch = train_set.load_batch(batch_size=config.batch_size)
         feed = {
             model.left: left_batch,
-            model.right: right_batch
+            model.right: right_batch,
+            model.learning_rate: config.learning_rate
         }
 
         sess.run(model.goal, feed_dict=feed)
@@ -104,17 +105,26 @@ def train(config):
             summary_writer.add_summary(summary_str, global_step=step)
 
         if step % 100 == 0:
-            validate(sess, model, summary_val_op, summary_writer, val_set, step)
+            validate(sess, model, summary_val_op, summary_writer, val_set, step, config)
 
         if step % 10000 == 0:
             saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
+
+        if step == 500000:
+            config.learning_rate /= 2
+
+        if step == 600000:
+            config.learning_rate /= 2
+
+        if step == 700000:
+            config.learning_rate /= 2
 
         if step < debug_steps:
             summary_str = sess.run(summary_train_op, feed_dict=feed)
             summary_writer.add_summary(summary_str, global_step=step)
 
             # val
-            validate(sess, model, summary_val_op, summary_writer, val_set, step)
+            validate(sess, model, summary_val_op, summary_writer, val_set, step, config)
 
         if step == debug_steps:
             break
