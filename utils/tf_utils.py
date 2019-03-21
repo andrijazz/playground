@@ -30,7 +30,7 @@ def deconv_layer(name, in_ch, out_ch, kernel_size, stride, relu, elu, batch_norm
 def upsample(x, s):
     shape = tf.shape(x)
     # x_up = tf.image.resize_images(x, [shape[1] * s, shape[2] * s])
-    x_up = tf.image.resize_nearest_neighbor(x, [shape[1] * s, shape[1] * s])
+    x_up = tf.image.resize_nearest_neighbor(x, [shape[1] * s, shape[2] * s])
     return x_up
 
 
