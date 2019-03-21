@@ -19,7 +19,7 @@ pandas = "*"
 seaborn = "*"
 sklearn = "*"
 imageio = "*"
-tensorflow-gpu = "*"
+tensorflow-gpu = "==1.12.0"
 tqdm = "*"
 vapk = {git = "https://github.com/andrijazz/vapk.git", editable = true}
 opencv-python = "*"
