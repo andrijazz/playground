@@ -88,6 +88,9 @@ def conv_layer(name, shape, stride, elu, batch_norm, dropout, padding, x, keep_p
             h_conv = tf.contrib.layers.batch_norm(h_conv)
         if elu:
             h_conv = tf.nn.elu(h_conv)
+        else:
+            h_conv = 0.3 * tf.nn.sigmoid(h_conv)
+
         if dropout:
             h_conv = tf.nn.dropout(h_conv, keep_prob=keep_prob)
 

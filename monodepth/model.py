@@ -127,22 +127,22 @@ class Monodepth(object):
             self.h_upconv4 = tf_utils.deconv_layer(name='upconv4', in_ch=256, out_ch=128, kernel_size=3, stride=2, relu=False, elu=True, batch_norm=False, x=self.h_iconv5)                              # h / 8
             # paper err in_ch = 128
             self.h_iconv4 = tf_utils.conv_layer(name='iconv4', shape=[3, 3, 256, 128], stride=[1, 1, 1, 1], elu=True, batch_norm=False, dropout=False, padding="SAME", x=tf.concat([self.h_upconv4, self.h_conv3b], axis=3))
-            self.h_disp4 = tf_utils.conv_layer(name='disp4', shape=[3, 3, 128, 2], stride=[1, 1, 1, 1], elu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv4)
+            self.h_disp4 = tf_utils.conv_layer(name='disp4', shape=[3, 3, 128, 2], stride=[1, 1, 1, 1], elu=False, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv4)
             self.h_disp4_up = tf_utils.upsample(self.h_disp4, 2)
 
             self.h_upconv3 = tf_utils.deconv_layer(name='upconv3', in_ch=128, out_ch=64, kernel_size=3, stride=2, relu=False, elu=True, batch_norm=False, x=self.h_iconv4)                               # h / 4
             self.h_iconv3 = tf_utils.conv_layer(name="iconv3", shape=[3, 3, 130, 64], stride=[1, 1, 1, 1], elu=True, batch_norm=False, dropout=False, padding="SAME", x=tf.concat([self.h_upconv3, self.h_conv2b, self.h_disp4_up], axis=3))
-            self.h_disp3 = tf_utils.conv_layer(name='disp3', shape=[3, 3, 64, 2], stride=[1, 1, 1, 1], elu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv3)
+            self.h_disp3 = tf_utils.conv_layer(name='disp3', shape=[3, 3, 64, 2], stride=[1, 1, 1, 1], elu=False, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv3)
             self.h_disp3_up = tf_utils.upsample(self.h_disp3, 2)
 
             self.h_upconv2 = tf_utils.deconv_layer(name='upconv2', in_ch=64, out_ch=32, kernel_size=3, stride=2, relu=False, elu=True, batch_norm=False, x=self.h_iconv3)                                # h / 2
             self.h_iconv2 = tf_utils.conv_layer(name="iconv2", shape=[3, 3, 66, 32], stride=[1, 1, 1, 1], elu=True, batch_norm=False, dropout=False, padding="SAME", x=tf.concat([self.h_upconv2, self.h_conv1b, self.h_disp3_up], axis=3))
-            self.h_disp2 = tf_utils.conv_layer(name='disp2', shape=[3, 3, 32, 2], stride=[1, 1, 1, 1], elu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv2)
+            self.h_disp2 = tf_utils.conv_layer(name='disp2', shape=[3, 3, 32, 2], stride=[1, 1, 1, 1], elu=False, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv2)
             self.h_disp2_up = tf_utils.upsample(self.h_disp2, 2)
 
             self.h_upconv1 = tf_utils.deconv_layer(name='upconv1', in_ch=32, out_ch=16, kernel_size=3, stride=2, relu=False, elu=True, batch_norm=False, x=self.h_iconv2)                                # h
             self.h_iconv1 = tf_utils.conv_layer(name="iconv1", shape=[3, 3, 18, 16], stride=[1, 1, 1, 1], elu=True, batch_norm=False, dropout=False, padding="SAME", x=tf.concat([self.h_upconv1, self.h_disp2_up], axis=3))
-            self.h_disp1 = tf_utils.conv_layer(name='disp1', shape=[3, 3, 16, 2], stride=[1, 1, 1, 1], elu=True, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv1)
+            self.h_disp1 = tf_utils.conv_layer(name='disp1', shape=[3, 3, 16, 2], stride=[1, 1, 1, 1], elu=False, batch_norm=False, dropout=False, padding="SAME", x=self.h_iconv1)
 
         with tf.variable_scope('disparities'):
             self.disp_est  = [self.h_disp1, self.h_disp2, self.h_disp3, self.h_disp4]
