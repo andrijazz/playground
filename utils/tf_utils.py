@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow.contrib.slim as slim
 
 
 def deconv_layer(name, in_ch, out_ch, kernel_size, stride, relu, elu, batch_norm, x):

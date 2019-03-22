@@ -4,6 +4,7 @@ from collections import namedtuple
 import tensorflow as tf
 import utils.bilinear_sampler as bilinear_sampler
 import utils.tf_utils as tf_utils
+import tensorflow.contrib.slim as slim
 
 
 def scale_pyramid(img, num_scales):
@@ -31,12 +32,12 @@ def SSIM(x, y):
     C1 = 0.01 ** 2
     C2 = 0.03 ** 2
 
-    mu_x = tf_utils.max_pool_3x3(x)
-    mu_y = tf_utils.max_pool_3x3(y)
+    mu_x = slim.avg_pool2d(x, 3, 1, 'VALID')
+    mu_y = slim.avg_pool2d(y, 3, 1, 'VALID')
 
-    sigma_x = tf_utils.max_pool_3x3(x ** 2) - mu_x ** 2
-    sigma_y = tf_utils.max_pool_3x3(y ** 2) - mu_y ** 2
-    sigma_xy = tf_utils.max_pool_3x3(x * y) - mu_x * mu_y
+    sigma_x  = slim.avg_pool2d(x ** 2, 3, 1, 'VALID') - mu_x ** 2
+    sigma_y  = slim.avg_pool2d(y ** 2, 3, 1, 'VALID') - mu_y ** 2
+    sigma_xy = slim.avg_pool2d(x * y , 3, 1, 'VALID') - mu_x * mu_y
 
     SSIM_n = (2 * mu_x * mu_y + C1) * (2 * sigma_xy + C2)
     SSIM_d = (mu_x ** 2 + mu_y ** 2 + C1) * (sigma_x + sigma_y + C2)
