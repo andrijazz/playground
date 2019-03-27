@@ -13,6 +13,12 @@
 \usepackage{amsfonts}       % blackboard math symbols
 \usepackage{nicefrac}       % compact symbols for 1/2, etc.
 \usepackage{microtype}      % microtypograph
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+%\usepackage[backend=biber]{biblatex}
+%\addbibresource{ref.bib}
+
 \title{Reproduction: Unsupervised Monocular Depth Estimation with Left-Right Consistency}
 
 % The \author macro works with any number of authors. There are two
@@ -52,6 +58,12 @@
 	%% \texttt{email} \\
 }
 
+% TODO
+% * your own observations about the paper, e.g. analysis of robustness, was the paper difficult to reproduce given the details in the paper; most important tricks in
+% implementation etc. 
+% * check with filip downsampling factor
+% * One thing I can do to improve training time overall is to introduce data loading pipeline by using tf.data.
+
 \begin{document}
 	% \nipsfinalcopy is no longer used
 	
@@ -67,35 +79,86 @@
 %	\end{abstract}
 	
 \section{Introduction}
-The most successful models that are solving depth estimation problem treat this task as supervised, meaning that large amount of data is required to successfully train the model. One such method is \textit{DispNet} [reference] which 
+In this paper\cite{monodepth} Godard et. al. are presenting unsupervised method for solving depth estimation problem. 
+
+%Most existing approaches treat depth estimation as a supervised regression problem and as a result, require vast quantities of corresponding ground truth depth data for training.
+
+The most learning based methods for monocular depth estimation rely on the availability of ground truth depth data aligned with each input image. These methods take color-depth pairs as an input during the training and learn to directly predict depth maps from color images. One such method is \emph{DispNet}\cite{dispnet} which introduced fully convolutional architecture similar to one used in this paper. 
+
+Capturing reliable depth data is both expensive and time-consuming and as an alternative stereo data is much easier to capture requiring only two synchronized cameras. Authors are proposing novel method which takes color image captured from the left camera as an input and color image captured from the right camera as a target during the training. Their convolutional neural network then learns to generate per pixel disparities that produce the right target image by shifting pixels from the left input image using differentiable image sampler. Depth can be then trivially recovered from the predicted disparity.
+
+% Depth tells us how much each pixel moves between the images in a stereo pair.
+
 \section{Method}
-\section{Experiments}
+At training time, we have access to two images $I^l$ and $I^r$, corresponding to the left and right color images from a calibrated stereo pair, captured at the same moment in time. The idea is to find the disparity $d^r$ that, when applied to the left image, would enable us to reconstruct the right image. We will refer to the reconstructed image $I^l(d^r)$ as $\tilde{I^r}$. Similarly, we can also estimate the left image given the right one, $\tilde{I^l} = I^r(d^l)$. Assuming that the images are rectified\cite{nesto}, for a given disparity $d$, the baseline distance between the cameras $b$ and the camera focal length $f$, we can calculate the depth $\hat{d}=bf/d$.
+
+Network consists of encoder and decoder part. Authors showed results using two types of encoders - VGG-16\cite{vgg} and Resnet50\cite{resnet}. The encoder part contains only convolutional layers with occasional strides of 2, resulting in a total downsampling factor of 128???. Decoder part of the network gradually and nonlinearly upsamples the feature maps, taking into account the features from the encoder part. This is done by a series of up-convolutional and convolutional layers. Network output disparity predictions at four different scales (disp4 to disp1)\footnote{arch}.
+
+The training loss is split into three portions:
+\begin{itemize}
+	\item $C_{ap}$ - Appearance matching loss encourages the reconstructed input to be similar to the corresponding training input.
+	\item $C_{ds}$ - Disparity smoothness loss encourages smooth disparities.
+	\item $C_{lr}$ - Makes left and right disparities consistent with each other.
+\end{itemize}
+
+Loss is calculated at each scale $s$ in order to handle different resolutions. The resulting loss function at each scale is:
+\begin{align*}
+	C_s &= \alpha_{ap}(C_{ap}^{l} + C_{ap}^{r}) + \alpha_{ds}(C_{ds}^{l} + C_{ds}^{r}) +
+\alpha_{lr}(C_{lr}^{l} + C_{lr}^{r})
+\end{align*}
+
+forming the total loss as the sum  $C = \sum_{s=1}^{4}\lambda_sC_s$.
 
 
+\section{Implementation}
+% I was heavily relying on authors implementation although they used slim which is deprecated in tensorflow.
+   
+I implemented the model in TensorFlow\footnote{https://github.com/andrijazz/playground/monodepth}. Model was trained on Tesla K80 GPU and it took about 2 days to train. Thats a bit slower 
+
+\section{Results}
+Authors have publish exact list of images they used for training so and preform experiments on Testing configuration ...
+Results ... metric, disparity images left, gt, est
+
+%\begin{figure}[h]
+%	\centering
+%	\includegraphics[width=350px]{arch.png}
+%	%\fbox{\rule[-.5cm]{0cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
+%	\caption{Network architecture.}
+%\end{figure}
 \section*{References}
 
-References follow the acknowledgments. Use unnumbered first-level
-heading for the references. Any choice of citation style is acceptable
-as long as you are consistent. It is permissible to reduce the font
-size to \verb+small+ (9 point) when listing the references. {\bf
-	Remember that you can go over 8 pages as long as the subsequent ones contain
-	\emph{only} cited references.}
-\medskip
+%References follow the acknowledgments. Use unnumbered first-level
+%heading for the references. Any choice of citation style is acceptable
+%as long as you are consistent. It is permissible to reduce the font
+%size to \verb+small+ (9 point) when listing the references. {\bf
+%	Remember that you can go over 8 pages as long as the subsequent ones contain
+%	\emph{only} cited references.}
+%\medskip
+%
+%\small
+%
+%[1] @inproceedings{monodepth17,
+%	title     = {Unsupervised Monocular Depth Estimation with Left-Right Consistency},
+%	author    = {Cl{\'{e}}ment Godard and
+%		Oisin {Mac Aodha} and
+%		Gabriel J. Brostow},
+%	booktitle = {CVPR},
+%	year = {2017}
+%}
+%
+%[2] Alexander, J.A.\ \& Mozer, M.C.\ (1995) Template-based algorithms
+%for connectionist rule extraction. In G.\ Tesauro, D.S.\ Touretzky and
+%T.K.\ Leen (eds.), {\it Advances in Neural Information Processing
+%	Systems 7}, pp.\ 609--616. Cambridge, MA: MIT Press.
+%
+%[3] Bower, J.M.\ \& Beeman, D.\ (1995) {\it The Book of GENESIS:
+%	Exploring Realistic Neural Models with the GEneral NEural SImulation
+%	System.}  New York: TELOS/Springer--Verlag.
+%
+%[4] Hasselmo, M.E., Schnell, E.\ \& Barkai, E.\ (1995) Dynamics of
+%learning and recall at excitatory recurrent synapses and cholinergic
+%modulation in rat hippocampal region CA3. {\it Journal of
+%	Neuroscience} {\bf 15}(7):5249-5262.
 
-\small
-
-[1] Alexander, J.A.\ \& Mozer, M.C.\ (1995) Template-based algorithms
-for connectionist rule extraction. In G.\ Tesauro, D.S.\ Touretzky and
-T.K.\ Leen (eds.), {\it Advances in Neural Information Processing
-	Systems 7}, pp.\ 609--616. Cambridge, MA: MIT Press.
-
-[2] Bower, J.M.\ \& Beeman, D.\ (1995) {\it The Book of GENESIS:
-	Exploring Realistic Neural Models with the GEneral NEural SImulation
-	System.}  New York: TELOS/Springer--Verlag.
-
-[3] Hasselmo, M.E., Schnell, E.\ \& Barkai, E.\ (1995) Dynamics of
-learning and recall at excitatory recurrent synapses and cholinergic
-modulation in rat hippocampal region CA3. {\it Journal of
-	Neuroscience} {\bf 15}(7):5249-5262.
-
+%\printbibliography
 \end{document}

@@ -107,7 +107,7 @@ def train(config):
         if step % 100 == 0:
             validate(sess, model, summary_val_op, summary_writer, val_set, step, config)
 
-        if step % 10000 == 0:
+        if step % 100000 == 0:
             saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
 
         if step == 500000:

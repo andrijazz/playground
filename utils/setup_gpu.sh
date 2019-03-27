@@ -40,3 +40,5 @@ sudo apt install cuda9.0 cuda-cublas-9-0 cuda-cufft-9-0 cuda-curand-9-0 \
 
 # if everything is ok you should be able to run
 sudo nvidia-smi
+
+# BONUS: guide how to mount data disk https://docs.microsoft.com/en-us/azure/virtual-machines/linux/attach-disk-portal#connect-to-the-linux-vm-to-mount-the-new-disk
