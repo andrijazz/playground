@@ -32,3 +32,9 @@ dispnet/dispflownet-release/
 *.out
 *.pdf
 *.dvi
+*blx.bib
+*.bbl
+*.bcf
+*.blg
+*.run.xml
+

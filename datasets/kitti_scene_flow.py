@@ -46,7 +46,7 @@ class KittiSceneFlow(object):
         m = len(file_batch)
         left_batch = np.empty([m, self.image_height, self.image_width, self.num_channels])
         right_batch = np.empty([m, self.image_height, self.image_width, self.num_channels])
-        disp_batch = np.empty([m, self.orig_image_height, self.orig_image_height])
+        disp_batch = np.empty([m, self.orig_image_height, self.orig_image_width])
 
         for i in range(m):
             left_file = file_batch[i][0]
@@ -61,10 +61,10 @@ class KittiSceneFlow(object):
             right = scipy.misc.imresize(right, (self.image_height, self.image_width), interp="bilinear")
             right_batch[i] = right
 
-            disp = cv2.imread(disp_file)
+            disp = cv2.imread(disp_file, -1)
             disp = disp.astype(np.float32) / 256
-            disp = scipy.misc.imresize(disp, (self.orig_image_height, self.orig_image_width), interpolation=cv2.INTER_LINEAR)
-            disp_batch[i] = disp.reshape((self.orig_image_height, self.orig_image_width))
+            disp = cv2.resize(disp, (self.orig_image_width, self.orig_image_height), interpolation=cv2.INTER_LINEAR)
+            disp_batch[i] = disp
 
         return left_batch, right_batch, disp_batch
 
