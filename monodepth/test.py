@@ -18,6 +18,15 @@ width_to_focal[1224] = 707.0493
 width_to_focal[1238] = 718.3351
 
 
+def remove_indices(l):
+    skip = [10, 12, 23, 24, 26, 31, 32, 34, 37, 40, 41, 44, 47, 48, 53, 54, 55, 58, 59, 63, 66, 81, 85, 92, 95, 98,100,104,112,114,117,122,124,128,131,144,154,158,160,165,166,167,170,189,194]
+    res = []
+    for i in range(len(l)):
+        if i not in skip:
+           res.append(l[i])
+    return res
+
+
 def compute_errors(gt, pred):
     thresh = np.maximum((gt / pred), (pred / gt))
     a1 = (thresh < 1.25   ).mean()
@@ -160,6 +169,11 @@ def test(args):
     # np.save(results_dir + "/result.npy", result)
 
     gt_depths, pred_depths, pred_disparities_resized = convert_disps_to_depths_kitti(gt_disparities, pred_disparities)
+    # hack
+    gt_depths = remove_indices(gt_depths)
+    pred_depths = remove_indices(pred_depths)
+    pred_disparities_resized = remove_indices(pred_disparities_resized)
+    num_samples = len(gt_depths)
 
     rms = np.zeros(num_samples, np.float32)
     log_rms = np.zeros(num_samples, np.float32)
@@ -189,6 +203,8 @@ def test(args):
 
         abs_rel[i], sq_rel[i], rms[i], log_rms[i], a1[i], a2[i], a3[i] = compute_errors(gt_depth[mask], pred_depth[mask])
 
+    print(np.argwhere(rms > 20))
+    print(rms)
     print("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format('abs_rel', 'sq_rel', 'rms', 'log_rms', 'd1_all', 'a1', 'a2', 'a3'))
     print("{:10.4f}, {:10.4f}, {:10.3f}, {:10.3f}, {:10.3f}, {:10.3f}, {:10.3f}, {:10.3f}".format(abs_rel.mean(), sq_rel.mean(), rms.mean(), log_rms.mean(), d1_all.mean(), a1.mean(), a2.mean(), a3.mean()))
 
