@@ -7,12 +7,6 @@ import numpy as np
 import vapk as utils
 
 
-class ModelType(Enum):
-    TRAIN = 1
-    EVALUATION = 2
-    INFERENCE = 3
-
-
 def input_fn(instance_file, gt_file):
     instance_string = tf.read_file(instance_file)
     gt_string = tf.read_file(gt_file)
@@ -51,17 +45,8 @@ fcn_parameters = namedtuple('parameters',
                             'num_labels,'
                             'keep_prob, '
                             'learning_rate, '
+                            'model, '
                             'type')
-
-# fcn_parameters = namedtuple('parameters',
-#                         'image_height, '
-#                         'image_width, '
-#                         'labels,'
-#                         'num_labels,'
-#                         'keep_prob, '
-#                         'learning_rate, '
-#                         'type')
-
 
 class fcn(object):
     """fcn model"""
@@ -80,12 +65,13 @@ class fcn(object):
             self.id_to_rgb[label.id] = label.color
 
     def __build_input_pipeline(self):
-        if self.params.data is None:
+        if self.params.type == "inference":
             # define model input
-            # with tf.variable_scope('input', reuse=self.reuse_variables):
-            self.x = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="x")  # [batch, in_height, in_width, in_channels]
-            self.y = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="y")  # [batch, in_height, in_width, in_channels]
-        else:
+            with tf.variable_scope('input', reuse=self.reuse_variables):
+                self.x = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="x")  # [batch, in_height, in_width, in_channels]
+                self.y = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="y")  # [batch, in_height, in_width, in_channels]
+                return
+        if self.params.type == "training" or self.params.type == "evaluation":
             self.dataset = tf.data.Dataset.from_tensor_slices((self.params.data.instances, self.params.data.ground_truth))
             self.dataset = self.dataset.shuffle(self.params.data.num_instances)
             self.dataset = self.dataset.map(input_fn, num_parallel_calls=4)
@@ -93,14 +79,16 @@ class fcn(object):
             self.dataset = self.dataset.batch(self.params.batch_size)
             self.dataset = self.dataset.prefetch(1)
             self.iterator = self.dataset.make_initializable_iterator()
-            # self.iterator = tf.data.Iterator.from_string_handle(self.handle, self.dataset.output_types, self.dataset.output_shapes)
 
             # define iterator init op
             self.iterator_init_op = self.iterator.initializer
 
             # define model input
-            # with tf.variable_scope('input', reuse=self.reuse_variables):
-            self.x, self.y = self.iterator.get_next()
+            with tf.variable_scope('input', reuse=self.reuse_variables):
+                self.x, self.y = self.iterator.get_next()
+                return
+
+        exit("Invalid model type")
 
     def __build_model(self):
         # with tf.variable_scope('input', reuse=self.reuse_variables):
@@ -138,9 +126,9 @@ class fcn(object):
             h_fc7 = utils.conv_layer('fc7', [1, 1, 4096, 4096], [1, 1, 1, 1], True, False, True, "VALID", h_fc6, self.params.keep_prob)
             h_score_fr = utils.conv_layer('score_fr', [1, 1, 4096, self.params.num_labels], [1, 1, 1, 1], False, False, False, "VALID", h_fc7)
         with tf.variable_scope('decoder', reuse=self.reuse_variables):
-            if self.params.type == "fcn32":
+            if self.params.model == "fcn32":
                 self.deconv = utils.deconv_layer('deconv', self.params.num_labels, 64, 32, h_score_fr)
-            elif self.params.type == "fcn16":
+            elif self.params.model == "fcn16":
                 h_upscore2 = utils.deconv_layer('upscore2', self.params.num_labels, 4, 2, h_score_fr)
 
                 # pool4
@@ -151,7 +139,7 @@ class fcn(object):
                 # h_upscore16
                 self.deconv = utils.deconv_layer('deconv', self.params.num_labels, 32, 16, h_fuse_pool4)
 
-            elif self.params.type == "fcn8":
+            elif self.params.model == "fcn8":
                 h_upscore2 = utils.deconv_layer('upscore2', self.params.num_labels, 4, 2, h_score_fr)
 
                 # pool4
@@ -197,12 +185,13 @@ class fcn(object):
 
     def __build_summaries(self):
         with tf.device('/cpu:0'):
-            tf.summary.scalar('train_loss', self.loss, collections=["train_collection"])
-            tf.summary.scalar('val_loss', self.loss, collections=["val_collection"])
-            tf.summary.image('val_x', self.x, max_outputs=1, collections=["val_collection"])
-            tf.summary.image('val_y', self.y, max_outputs=1, collections=["val_collection"])
-            tf.summary.image('val_p', self.output, max_outputs=1, collections=["val_collection"])
-            tf.summary.image('test_p', self.output, max_outputs=1, collections=["test_collection"])
+            collection = self.params.type + '_collection'
+            tf.summary.scalar(self.params.type + '_loss', self.loss, collections=[collection])
+            tf.summary.image(self.params.type + '_x', self.x, max_outputs=1, collections=[collection])
+            tf.summary.image(self.params.type + '_y', self.y, max_outputs=1, collections=[collection])
+            tf.summary.image(self.params.type + '_p', self.output, max_outputs=1, collections=[collection])
+
+            self.summary_op = tf.summary.merge_all(collection)
 
     def rgb_to_probability(self, img):
         probability = np.zeros([self.params.image_height, self.params.image_width, self.params.num_labels])

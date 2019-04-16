@@ -2,11 +2,12 @@
 
 """
 TODO:
-* resize images during the training
+* continue with training
+* new utils
 * metrics
 * Readme with results / playground readme about general guidelines
 * plot predict.py (overlay)
-* continue with training
+* multiple gpu's
 """
 from __future__ import division, absolute_import, print_function
 
@@ -19,11 +20,11 @@ from fcn.model import *
 from datasets.dataloader import *
 
 
-def validate(sess, val_model, summary_val_op, summary_writer, step):
+def validate(sess, val_model, summary_writer, step):
     sess.run(val_model.iterator_init_op)
     try:
         while True:
-            summary_str = sess.run(summary_val_op)
+            summary_str = sess.run(val_model.summary_op)
             summary_writer.add_summary(summary_str, global_step=step)
     except tf.errors.OutOfRangeError:
         return
@@ -64,7 +65,8 @@ def train(config):
             num_labels=train_set.num_labels,
             keep_prob=config.keep_prob,
             learning_rate=config.learning_rate,
-            type=config.model
+            model=config.model,
+            type="training"
         )
     )
 
@@ -78,7 +80,8 @@ def train(config):
             num_labels=val_set.num_labels,
             keep_prob=config.keep_prob,
             learning_rate=config.learning_rate,
-            type=config.model
+            model=config.model,
+            type="evaluation"
         )
     )
 
@@ -89,8 +92,6 @@ def train(config):
     # init summaries
     summary_writer = tf.summary.FileWriter(OUT_DIR)
     summary_writer.add_graph(sess.graph)
-    summary_train_op = tf.summary.merge_all('train_collection')
-    summary_val_op = tf.summary.merge_all('val_collection')
 
     # init saver
     saver = tf.train.Saver()
@@ -115,15 +116,15 @@ def train(config):
             while True:
                 sess.run(train_model.train_op)
 
-                if step % 100 == 0:
-                    summary_str = sess.run(summary_train_op)
-                    summary_writer.add_summary(summary_str, global_step=step)
+                # if step % 100 == 0:
+                summary_str = sess.run(train_model.summary_op)
+                summary_writer.add_summary(summary_str, global_step=step)
                 if step % 1000 == 0:
-                    validate(sess, val_model, summary_val_op, summary_writer, step)
+                    validate(sess, val_model, summary_writer, step)
                 if step % 10000 == 0:
                     saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
                 if debug:
-                    validate(sess, val_model, summary_val_op, summary_writer, step)
+                    validate(sess, val_model, summary_writer, step)
                     # break
 
                 step += 1
