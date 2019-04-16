@@ -1,10 +1,15 @@
-# SETUP GPU
+#!/usr/bin/env bash
+
 ###########################################################################
 # OS Ubuntu 16.04
 # GPU Tesla K80
 # CUDA 9.0
 # Tensorflow version 1.12.0
 ###########################################################################
+# 1) setup nvidia drivers
+# 2) guide how to create and mount data disk https://docs.microsoft.com/en-us/azure/virtual-machines/linux/attach-disk-portal#connect-to-the-linux-vm-to-mount-the-new-disk
+###########################################################################
+
 # check if graphics card is connected to PCI bus
 sudo lspci | grep -i nvidia
 
@@ -41,4 +46,5 @@ sudo apt install cuda9.0 cuda-cublas-9-0 cuda-cufft-9-0 cuda-curand-9-0 \
 # if everything is ok you should be able to run
 sudo nvidia-smi
 
-# BONUS: guide how to mount data disk https://docs.microsoft.com/en-us/azure/virtual-machines/linux/attach-disk-portal#connect-to-the-linux-vm-to-mount-the-new-disk
+# now just install tensorflow-gpu via pip in your virtual env
+# pip install tensorflow-gpu==1.12.0

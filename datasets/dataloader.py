@@ -6,22 +6,39 @@ import datasets.kitti_raw as kitti_raw
 
 
 def load(dataset_name, dataset_path):
-    if dataset_name == "kitti":
-        train_set = kitti.KittiDataset(
-            path_img=dataset_path + "/kitti/data_semantics/training/image_2",
-            path_gt=dataset_path + "/kitti/data_semantics/training/semantic_rgb"
+    # if dataset_name == "kitti":
+    #     train_set = kitti.KittiDataset(
+    #         path_img=dataset_path + "/kitti/data_semantics/training/image_2",
+    #         path_gt=dataset_path + "/kitti/data_semantics/training/semantic_rgb"
+    #     )
+    #
+    #     val_set = kitti.KittiDataset(
+    #         path_img=dataset_path + "/kitti/data_semantics/val/image_2",
+    #         path_gt=dataset_path + "/kitti/data_semantics/val/semantic_rgb"
+    #     )
+    #
+    #     test_set = kitti.KittiDataset(
+    #         path_img=dataset_path + "/kitti/data_semantics/testing/image_2",
+    #         path_gt=dataset_path + "/kitti/data_semantics/testing/semantic_rgb"
+    #     )
+    #     return train_set, val_set, test_set
+
+    if dataset_name == "kitti_semantics":
+        train_set = kitti.KittiSemantics(
+            instances_path=dataset_path + "/kitti/data_semantics/training/image_2",
+            ground_truth_path=dataset_path + "/kitti/data_semantics/training/semantic_rgb"
         )
 
-        val_set = kitti.KittiDataset(
-            path_img=dataset_path + "/kitti/data_semantics/val/image_2",
-            path_gt=dataset_path + "/kitti/data_semantics/val/semantic_rgb"
+        val_set = kitti.KittiSemantics(
+            instances_path=dataset_path + "/kitti/data_semantics/val/image_2",
+            ground_truth_path=dataset_path + "/kitti/data_semantics/val/semantic_rgb"
         )
 
-        test_set = kitti.KittiDataset(
-            path_img=dataset_path + "/kitti/data_semantics/testing/image_2",
-            path_gt=dataset_path + "/kitti/data_semantics/testing/semantic_rgb"
-        )
-        return train_set, val_set, test_set
+        # test_set = kitti.KittiSemantics(
+        #     instances_path=dataset_path + "/kitti/data_semantics/testing/image_2",
+        #     ground_truth_path=dataset_path + "/kitti/data_semantics/testing/semantic_rgb"
+        # )
+        return train_set, val_set, None
 
     if dataset_name == "cityscapes":
         train_set = cs.CityscapesDataset(

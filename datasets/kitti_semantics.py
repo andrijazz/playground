@@ -8,6 +8,8 @@ import scipy
 import numpy as np
 import scipy.misc
 import vapk as utils
+
+import tensorflow as tf
 # --------------------------------------------------------------------------------
 # Definitions
 # --------------------------------------------------------------------------------
@@ -84,54 +86,58 @@ color_to_label       = { label.color    : label for label in labels           }
 #     return probability_batch
 
 
-class KittiDataset(object):
-    def __init__(self,
-                 path_img,
-                 path_gt):
-        # sizes
-        self.image_height = 370
-        self.image_width = 1224
-        self.num_channels = 3
-
+class KittiSemantics(object):
+    def __init__(self, instances_path, ground_truth_path):
         # labels
         self.labels = labels
         self.num_labels = len(labels)
+
         # paths
-        self.path_img = path_img
-        self.path_gt = path_gt
-        # pairs
-        self.__initialize(path_img, path_gt)
-        # iters
-        self.iter = utils.BatchIterator(self.file_pairs)
+        self.instances_path = instances_path
+        self.ground_truth_path = ground_truth_path
 
-    def __initialize(self, path_img, path_gt):
-        images = glob.glob(os.path.join(path_img, '*.png'))
-        data = []
-        for image in images:
-            filename = os.path.basename(image)
-            gt_image = path_gt + "/" + filename
-            if not os.path.exists(gt_image):
-                gt_image = ""
-            data.append([image, gt_image])
-        self.file_pairs = data
+        # data
+        self.instances, self.ground_truth = self.__initialize()
+        self.num_instances = len(self.instances)
 
-    def __load_samples(self, images):
-        """Iterates through list of images and packs them into batch of size m"""
-        m = len(images)
-        x_batch = np.empty([m, self.image_height, self.image_width, self.num_channels])
-        y_batch = np.empty([m, self.image_height, self.image_width, self.num_channels])
+    def __initialize(self):
+        """Collects the list of (instance, gt) filename's pairs"""
+        instances_files = glob.glob(os.path.join(self.instances_path, '*.png'))
+        instances = []
+        ground_truth = []
+        for instance_file in instances_files:
+            filename = os.path.basename(instance_file)
+            ground_truth_file = self.ground_truth_path + "/" + filename
+            if not os.path.exists(ground_truth_file):
+                exit("Missing label for instance {}".format(instance_file))
+            instances.append(instance_file)
+            ground_truth.append(ground_truth_file)
 
-        for i in range(m):
-            image_file = images[i][0]
-            gt_image_file = images[i][1]
-            image = scipy.misc.imread(image_file)
-            x_batch[i] = image
-            if gt_image_file: # in test set we might not have gt image
-                gt_image = scipy.misc.imread(gt_image_file)
-                y_batch[i] = gt_image
-        return x_batch, y_batch
+        return instances, ground_truth
 
-    def load_batch(self, batch_size):
-        file_batch, end_of_epoch = self.iter.next(batch_size)
-        x_batch, y_batch = self.__load_samples(file_batch)
-        return x_batch, y_batch, end_of_epoch
+
+if __name__ == "__main__":
+    train_set = KittiSemantics(
+        instances_path="/mnt/datasets/kitti/data_semantics/training/image_2",
+        ground_truth_path="/mnt/datasets/kitti/data_semantics/training/semantic_rgb"
+    )
+
+    # with tf.Session() as sess:
+    #     init_op = [tf.global_variables_initializer(), tf.local_variables_initializer()]
+    #     sess.run(init_op)
+    #
+    #     # Initialize the iterator
+    #     sess.run(iterator_init_op)
+    #
+    #     print(sess.run(iterator.get_next()))
+    #     print(sess.run(iterator.get_next()))
+    #
+    #     # Move the iterator back to the beginning
+    #     sess.run(init_op)
+    #     print(sess.run(iterator.get_next()))
+
+    # while True:
+    #     try:
+    #         sess.run(result)
+    #     except tf.errors.OutOfRangeError:
+    #         break

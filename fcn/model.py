@@ -1,27 +1,75 @@
 from __future__ import absolute_import, division, print_function
 from collections import namedtuple
+from enum import Enum
 
 import tensorflow as tf
 import numpy as np
 import vapk as utils
 
 
+class ModelType(Enum):
+    TRAIN = 1
+    EVALUATION = 2
+    INFERENCE = 3
+
+
+def input_fn(instance_file, gt_file):
+    instance_string = tf.read_file(instance_file)
+    gt_string = tf.read_file(gt_file)
+
+    # Don't use tf.image.decode_image, or the output shape will be undefined
+    instance = tf.image.decode_png(instance_string, channels=3)
+    gt = tf.image.decode_png(gt_string, channels=3)
+
+    # resize images (for instances we are using method=tf.image.ResizeMethod.BILINEAR
+    instance = tf.image.resize_images(instance, [256, 512])
+    gt = tf.image.resize_images(gt, [256, 512], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+
+    # This will convert to float values in [0, 1]
+    # image = tf.image.convert_image_dtype(image, tf.float32)
+    return instance, gt
+
+
+def preprocess_fn(image, label):
+    # image = tf.image.random_flip_left_right(image)
+
+    # image = tf.image.random_brightness(image, max_delta=32.0 / 255.0)
+    # image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
+
+    # Make sure the image is still in [0, 1]
+    # image = tf.clip_by_value(image, 0.0, 1.0)
+
+    return image, label
+
+
 fcn_parameters = namedtuple('parameters',
-                        'image_height, '
-                        'image_width, '
-                        'labels,'
-                        'num_labels,'
-                        'keep_prob, '
-                        'learning_rate, '
-                        'type')
+                            'batch_size, '
+                            'data, '
+                            'image_height, '
+                            'image_width, '
+                            'labels,'
+                            'num_labels,'
+                            'keep_prob, '
+                            'learning_rate, '
+                            'type')
+
+# fcn_parameters = namedtuple('parameters',
+#                         'image_height, '
+#                         'image_width, '
+#                         'labels,'
+#                         'num_labels,'
+#                         'keep_prob, '
+#                         'learning_rate, '
+#                         'type')
 
 
 class fcn(object):
     """fcn model"""
 
-    def __init__(self, params, reuse_variables=None):
+    def __init__(self, params, reuse_variables=tf.AUTO_REUSE):
         self.params = params
         self.reuse_variables = reuse_variables
+        self.__build_input_pipeline()
         self.__build_model()
         self.__build_loss()
         self.__build_summaries()
@@ -31,12 +79,36 @@ class fcn(object):
         for label in self.params.labels:
             self.id_to_rgb[label.id] = label.color
 
-    def __build_model(self):
-        with tf.variable_scope('input', reuse=self.reuse_variables):
+    def __build_input_pipeline(self):
+        if self.params.data is None:
+            # define model input
+            # with tf.variable_scope('input', reuse=self.reuse_variables):
             self.x = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="x")  # [batch, in_height, in_width, in_channels]
             self.y = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="y")  # [batch, in_height, in_width, in_channels]
-            # TODO: how gradient is calculated
-            self.y_probability = tf.py_func(self.batch_rgb_to_probability, [self.y], tf.float32)
+        else:
+            self.dataset = tf.data.Dataset.from_tensor_slices((self.params.data.instances, self.params.data.ground_truth))
+            self.dataset = self.dataset.shuffle(self.params.data.num_instances)
+            self.dataset = self.dataset.map(input_fn, num_parallel_calls=4)
+            self.dataset = self.dataset.map(preprocess_fn, num_parallel_calls=4)
+            self.dataset = self.dataset.batch(self.params.batch_size)
+            self.dataset = self.dataset.prefetch(1)
+            self.iterator = self.dataset.make_initializable_iterator()
+            # self.iterator = tf.data.Iterator.from_string_handle(self.handle, self.dataset.output_types, self.dataset.output_shapes)
+
+            # define iterator init op
+            self.iterator_init_op = self.iterator.initializer
+
+            # define model input
+            # with tf.variable_scope('input', reuse=self.reuse_variables):
+            self.x, self.y = self.iterator.get_next()
+
+    def __build_model(self):
+        # with tf.variable_scope('input', reuse=self.reuse_variables):
+        #     self.x = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="x")  # [batch, in_height, in_width, in_channels]
+        #     self.y = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="y")  # [batch, in_height, in_width, in_channels]
+
+        # TODO: how gradient is calculated
+        self.y_probability = tf.py_func(self.batch_rgb_to_probability, [self.y], tf.float32)
 
         # padding input by 100
         # https://github.com/shelhamer/fcn.berkeleyvision.org/edit/master/README.md#L72
@@ -121,7 +193,7 @@ class fcn(object):
             self.loss = tf.reduce_mean(self.cross_entropy, name="loss")
 
             self.opt = tf.train.AdamOptimizer(learning_rate=self.params.learning_rate, name="opt")
-            self.goal = self.opt.minimize(self.loss, name="goal")
+            self.train_op = self.opt.minimize(self.loss, name="train_op")
 
     def __build_summaries(self):
         with tf.device('/cpu:0'):

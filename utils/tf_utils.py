@@ -1,5 +1,4 @@
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
 
 
 def deconv_layer(name, in_ch, out_ch, kernel_size, stride, relu, elu, batch_norm, x):
@@ -62,8 +61,6 @@ def bias_variable(shape, name):
     return tf.get_variable(name, initializer=initial)
 
 
-# 2d convolution with padding
-# https://www.tensorflow.org/api_docs/python/tf/nn/conv2d
 def conv2d(x, W, s, padding):
     return tf.nn.conv2d(x, W, s, padding=padding)
 
