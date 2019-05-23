@@ -40,7 +40,7 @@ def train(config):
     # tf.set_random_seed(seed)
 
     # dirs
-    run_str = make_hparam_string(vars(config), ignored_keys=["checkpoint", "weights"])
+    run_str = make_hparam_string(vars(config), ignored_keys=["checkpoint", "weights", "log_on", "save_on", "debug"])
     OUT_DIR = LOG_DIR + "/" + run_str
     if not os.path.exists(OUT_DIR):
         os.makedirs(OUT_DIR)
@@ -122,16 +122,16 @@ def train(config):
             while True:
                 sess.run(train_model.train_op)
 
-                if step % 100 == 0:
+                if step % config.log_on == 0:
                     summary_str = sess.run(train_model.summary_op)
                     summary_writer.add_summary(summary_str, global_step=step)
-                if step % 1000 == 0:
                     validate(sess, val_model, summary_writer, step)
-                if step % 10000 == 0:
+
+                if step % config.save_on == 0:
                     saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
 
                 # debug steps
-                if step <= num_of_debug_steps:
+                if step <= config.debug:
                     summary_str = sess.run(train_model.summary_op)
                     summary_writer.add_summary(summary_str, global_step=step)
                     validate(sess, val_model, summary_writer, step)
@@ -140,7 +140,7 @@ def train(config):
                 step += 1
 
         except tf.errors.OutOfRangeError:
-            print('end of epoch')
+            logger.info("End of epoch. step = {}".format(step))
 
     saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
 
@@ -166,6 +166,9 @@ if __name__ == "__main__":
     parser.add_argument('-g', '--gpu', type=int, help='GPU to use for training', default=1)
     parser.add_argument('-k', '--keep_prob', type=float, help='Dropout keep prob. Default is 0.5.', default=float(0.5))
     parser.add_argument('-w', '--weights', type=str, help='Path to file with pre-trained vgg-16 weights', default='vgg16_weights.npz')
+    parser.add_argument('-s', '--save_on', type=int, help='Save model on x-th step', default=1000)
+    parser.add_argument('-lo', '--log_on', type=int, help='Log summaries on x-th step', default=100)
+    parser.add_argument('-db', '--debug', type=int, help='Debug steps', default=0)
     args = parser.parse_args()
 
     tf.app.run()
