@@ -21,7 +21,7 @@ wget --load-cookies cookies.txt --content-disposition https://www.cityscapes-dat
 # unpacking
 echo "unpacking cityscapes..."
 
-unar -d leftImg8bit_trainvaltest.zip
-unar -d gtFine_trainvaltest.zip
-unar -d rightImg8bit_trainvaltest.zip
-unar -d disparity_trainvaltest.zip
+unzip leftImg8bit_trainvaltest.zip -d leftImg8bit_trainvaltest
+unzip gtFine_trainvaltest.zip -d gtFine_trainvaltest
+unzip rightImg8bit_trainvaltest.zip -d rightImg8bit_trainvaltest
+unzip disparity_trainvaltest.zip -d disparity_trainvaltest
