@@ -1,15 +1,7 @@
-import os
+from utils.common import *
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir))
 MODEL_NAME = "fcn"
 LOG_FILENAME = "fcn"
 CONFIG_FILENAME = "config.json"
-
-#DATA_DRIVE = "/datadrive"
-DATA_DRIVE = "/mnt"
-
-DATASET_DIR = DATA_DRIVE + "/datasets"
 LOG_DIR = DATA_DRIVE + "/log/" + MODEL_NAME
-debug = True
-
+num_of_debug_steps = 10

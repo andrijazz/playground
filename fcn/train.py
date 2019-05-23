@@ -8,16 +8,18 @@ TODO:
 * Readme with results / playground readme about general guidelines
 * plot predict.py (overlay)
 * multiple gpu's
+* rename test to eval
 """
+
 from __future__ import division, absolute_import, print_function
 
 import argparse
 import json
-import tqdm
 
 from fcn.settings import *
 from fcn.model import *
 from datasets.dataloader import *
+from utils.utils_n import *
 
 
 def validate(sess, val_model, summary_writer, step):
@@ -26,6 +28,7 @@ def validate(sess, val_model, summary_writer, step):
         while True:
             summary_str = sess.run(val_model.summary_op)
             summary_writer.add_summary(summary_str, global_step=step)
+            break # just write one image from val
     except tf.errors.OutOfRangeError:
         return
 
@@ -37,7 +40,7 @@ def train(config):
     # tf.set_random_seed(seed)
 
     # dirs
-    run_str = utils.make_hparam_string(vars(config))
+    run_str = make_hparam_string(vars(config), ignored_keys=["checkpoint", "weights"])
     OUT_DIR = LOG_DIR + "/" + run_str
     if not os.path.exists(OUT_DIR):
         os.makedirs(OUT_DIR)
@@ -66,8 +69,9 @@ def train(config):
             keep_prob=config.keep_prob,
             learning_rate=config.learning_rate,
             model=config.model,
-            type="training"
-        )
+            type=TRAINING
+        ),
+        reuse_variables=tf.AUTO_REUSE
     )
 
     val_model = fcn(
@@ -81,8 +85,9 @@ def train(config):
             keep_prob=config.keep_prob,
             learning_rate=config.learning_rate,
             model=config.model,
-            type="evaluation"
-        )
+            type=EVAL
+        ),
+        reuse_variables=tf.AUTO_REUSE
     )
 
     # init sess
@@ -100,39 +105,43 @@ def train(config):
     init_vars = [tf.global_variables_initializer(), tf.local_variables_initializer()]
     sess.run(init_vars)
 
-    # init weights
-    # if config.init_weights:
-    #     sess.run(model.initialize_weights_op())
+    # restore model
+    if config.checkpoint:
+        saver.restore(sess, config.checkpoint)
+    else:
+        # init weights only if we are not restoring the model and config.weights is set
+        if config.weights:
+            sess.run(train_model.initialize_weights_op(config.weights))
 
     logger.info("Training started")
 
-    # total_steps = config.num_epochs * train_set.num_instances // config.batch_size
-    pbar = tqdm.tqdm(total=config.num_epochs)
     step = 1
     for epoch in range(config.num_epochs):
-
         sess.run(train_model.iterator_init_op)
         try:
             while True:
                 sess.run(train_model.train_op)
 
-                # if step % 100 == 0:
-                summary_str = sess.run(train_model.summary_op)
-                summary_writer.add_summary(summary_str, global_step=step)
+                if step % 100 == 0:
+                    summary_str = sess.run(train_model.summary_op)
+                    summary_writer.add_summary(summary_str, global_step=step)
                 if step % 1000 == 0:
                     validate(sess, val_model, summary_writer, step)
                 if step % 10000 == 0:
                     saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
-                if debug:
+
+                # debug steps
+                if step <= num_of_debug_steps:
+                    summary_str = sess.run(train_model.summary_op)
+                    summary_writer.add_summary(summary_str, global_step=step)
                     validate(sess, val_model, summary_writer, step)
-                    # break
+                    saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
 
                 step += 1
 
         except tf.errors.OutOfRangeError:
-            pbar.update(1)
+            print('end of epoch')
 
-    pbar.close()
     saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
 
     # clean up tf things
@@ -148,15 +157,15 @@ def main(_):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Fully Convolutional Networks TensorFlow implementation [Training]')
-
-    parser.add_argument('-m', '--model', type=str, help='model. fcn32 or fcn16 or fcn8', default='fcn32')
-    parser.add_argument('-d', '--dataset', type=str, help='dataset to train on. kitti or cityscapes', default='kitti_semantics')
-    parser.add_argument('-b', '--batch_size', type=int, help='batch size', default=2)
-    parser.add_argument('-n', '--num_epochs', type=int, help='number of epochs', default=50)
-    parser.add_argument('-l', '--learning_rate', type=float, help='learning rate', default=1e-3)
+    parser.add_argument('-c', '--checkpoint', type=str, help='Checkpoint full path', default='')
+    parser.add_argument('-m', '--model', type=str, help='Model type (fcn32, fcn16 or fcn8)', default='fcn8')
+    parser.add_argument('-d', '--dataset', type=str, help='Dataset (kitti_semantics or cityscapes)', default='kitti_semantics')
+    parser.add_argument('-b', '--batch_size', type=int, help='Batch size', default=2)
+    parser.add_argument('-n', '--num_epochs', type=int, help='Number of epochs', default=50)
+    parser.add_argument('-l', '--learning_rate', type=float, help='Learning rate', default=1e-3)
     parser.add_argument('-g', '--gpu', type=int, help='GPU to use for training', default=1)
-    parser.add_argument('-k', '--keep_prob', type=float, help='dropout keep prob. default is 0.5.', default=float(0.5))
-    parser.add_argument('-i', '--init_weights', type=bool, help='use pretrained vgg-16 weights', default=True)
+    parser.add_argument('-k', '--keep_prob', type=float, help='Dropout keep prob. Default is 0.5.', default=float(0.5))
+    parser.add_argument('-w', '--weights', type=str, help='Path to file with pre-trained vgg-16 weights', default='vgg16_weights.npz')
     args = parser.parse_args()
 
     tf.app.run()

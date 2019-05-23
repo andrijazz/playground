@@ -5,7 +5,7 @@ import datasets.kitti_scene_flow as kitti_scene_flow
 import datasets.kitti_raw as kitti_raw
 
 
-def load(dataset_name, dataset_path):
+def load(dataset, dataset_path):
     # if dataset_name == "kitti":
     #     train_set = kitti.KittiDataset(
     #         path_img=dataset_path + "/kitti/data_semantics/training/image_2",
@@ -23,7 +23,7 @@ def load(dataset_name, dataset_path):
     #     )
     #     return train_set, val_set, test_set
 
-    if dataset_name == "kitti_semantics":
+    if dataset == "kitti_semantics":
         train_set = kitti.KittiSemantics(
             instances_path=dataset_path + "/kitti/data_semantics/training/image_2",
             ground_truth_path=dataset_path + "/kitti/data_semantics/training/semantic_rgb"
@@ -40,7 +40,7 @@ def load(dataset_name, dataset_path):
         # )
         return train_set, val_set, None
 
-    if dataset_name == "cityscapes":
+    if dataset == "cityscapes":
         train_set = cs.CityscapesDataset(
             path_img=dataset_path + "/cityscapes/leftImg8bit_trainvaltest/leftImg8bit/train",
             path_gt=dataset_path + "/cityscapes/gtFine_trainvaltest/gtFine/train"
@@ -57,7 +57,7 @@ def load(dataset_name, dataset_path):
         )
         return train_set, val_set, test_set
 
-    if dataset_name == "flyingthings3d":
+    if dataset == "flyingthings3d":
         train_set = flying_things.FlyingThings3D(
             path_img_left=dataset_path + "/flyingthings3d/FlyingThings3D_subset_image_clean/train/image_clean/left",
             path_img_right=dataset_path + "/flyingthings3d/FlyingThings3D_subset_image_clean/train/image_clean/right",
@@ -72,7 +72,7 @@ def load(dataset_name, dataset_path):
 
         return train_set, val_set, None
 
-    if dataset_name == "kitti_raw":
+    if dataset == "kitti_raw":
         train_set = kitti_raw.KittiRaw(
             data_path=dataset_path + "/kitti/",
             file_list=dataset_path + "/kitti/kitti_train_files.txt"
@@ -93,7 +93,7 @@ def load(dataset_name, dataset_path):
         # )
         # return train_set, None, None
 
-    if dataset_name == "kitti_scene_flow":
+    if dataset == "kitti_scene_flow":
         test_set = kitti_scene_flow.KittiSceneFlow(
             lr_path=dataset_path + "/kitti/data_scene_flow",
             lr_files=dataset_path + "/kitti/kitti_stereo_2015_test_files.txt",

@@ -1,10 +1,10 @@
 from __future__ import absolute_import, division, print_function
 from collections import namedtuple
-from enum import Enum
 
 import tensorflow as tf
 import numpy as np
 import vapk as utils
+import utils.common as common
 
 
 def input_fn(instance_file, gt_file):
@@ -48,13 +48,14 @@ fcn_parameters = namedtuple('parameters',
                             'model, '
                             'type')
 
+
 class fcn(object):
     """fcn model"""
 
-    def __init__(self, params, reuse_variables=tf.AUTO_REUSE):
+    def __init__(self, params, reuse_variables=None):
         self.params = params
         self.reuse_variables = reuse_variables
-        self.__build_input_pipeline()
+        self.__build_input()
         self.__build_model()
         self.__build_loss()
         self.__build_summaries()
@@ -64,18 +65,18 @@ class fcn(object):
         for label in self.params.labels:
             self.id_to_rgb[label.id] = label.color
 
-    def __build_input_pipeline(self):
-        if self.params.type == "inference":
+    def __build_input(self):
+        if self.params.type == common.INFERENCE:
             # define model input
             with tf.variable_scope('input', reuse=self.reuse_variables):
                 self.x = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="x")  # [batch, in_height, in_width, in_channels]
                 self.y = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="y")  # [batch, in_height, in_width, in_channels]
                 return
-        if self.params.type == "training" or self.params.type == "evaluation":
+        if self.params.type == common.TRAINING or self.params.type == common.EVAL:
             self.dataset = tf.data.Dataset.from_tensor_slices((self.params.data.instances, self.params.data.ground_truth))
             self.dataset = self.dataset.shuffle(self.params.data.num_instances)
             self.dataset = self.dataset.map(input_fn, num_parallel_calls=4)
-            self.dataset = self.dataset.map(preprocess_fn, num_parallel_calls=4)
+            # self.dataset = self.dataset.map(preprocess_fn, num_parallel_calls=4)
             self.dataset = self.dataset.batch(self.params.batch_size)
             self.dataset = self.dataset.prefetch(1)
             self.iterator = self.dataset.make_initializable_iterator()
@@ -91,48 +92,44 @@ class fcn(object):
         exit("Invalid model type")
 
     def __build_model(self):
-        # with tf.variable_scope('input', reuse=self.reuse_variables):
-        #     self.x = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="x")  # [batch, in_height, in_width, in_channels]
-        #     self.y = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="y")  # [batch, in_height, in_width, in_channels]
-
-        # TODO: how gradient is calculated
-        self.y_probability = tf.py_func(self.batch_rgb_to_probability, [self.y], tf.float32)
-
-        # padding input by 100
-        # https://github.com/shelhamer/fcn.berkeleyvision.org/edit/master/README.md#L72
-        # https://github.com/shelhamer/fcn.berkeleyvision.org/blob/1305c7378a9f0ab44b2c936f4d60e4687e3d8743/voc-fcn32s/net.py#L28
-        padded_x = tf.pad(self.x, [[0, 0], [100, 100], [100, 100], [0, 0]], "CONSTANT")
-
         with tf.variable_scope('encoder', reuse=self.reuse_variables):
-            h_conv1_1 = utils.conv_layer('conv1_1', [3, 3, 3, 64], [1, 1, 1, 1], True, False, False, "SAME",  padded_x)
-            h_conv1_2 = utils.conv_layer('conv1_2', [3, 3, 64, 64], [1, 1, 1, 1], True, False, False, "SAME", h_conv1_1)
-            h_pool1 = utils.max_pool_2x2('pool1', h_conv1_2)
-            h_conv2_1 = utils.conv_layer('conv2_1', [3, 3, 64, 128], [1, 1, 1, 1], True, False, False, "SAME", h_pool1)
-            h_conv2_2 = utils.conv_layer('conv2_2', [3, 3, 128, 128], [1, 1, 1, 1], True, False, False, "SAME", h_conv2_1)
-            h_pool2 = utils.max_pool_2x2('pool2', h_conv2_2)
-            h_conv3_1 = utils.conv_layer('conv3_1', [3, 3, 128, 256], [1, 1, 1, 1], True, False, False, "SAME", h_pool2)
-            h_conv3_2 = utils.conv_layer('conv3_2', [3, 3, 256, 256], [1, 1, 1, 1], True, False, False, "SAME", h_conv3_1)
-            h_conv3_3 = utils.conv_layer('conv3_3', [3, 3, 256, 256], [1, 1, 1, 1], True, False, False, "SAME", h_conv3_2)
-            h_pool3 = utils.max_pool_2x2('pool3', h_conv3_3)
-            h_conv4_1 = utils.conv_layer('conv4_1', [3, 3, 256, 512], [1, 1, 1, 1], True, False, False, "SAME", h_pool3)
-            h_conv4_2 = utils.conv_layer('conv4_2', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv4_1)
-            h_conv4_3 = utils.conv_layer('conv4_3', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv4_2)
-            h_pool4 = utils.max_pool_2x2('pool4', h_conv4_3)
-            h_conv5_1 = utils.conv_layer('conv5_1', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_pool4)
-            h_conv5_2 = utils.conv_layer('conv5_2', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv5_1)
-            h_conv5_3 = utils.conv_layer('conv5_3', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", h_conv5_2)
-            h_pool5 = utils.max_pool_2x2('pool5', h_conv5_3)
-            h_fc6 = utils.conv_layer('fc6', [7, 7, 512, 4096], [1, 1, 1, 1], True, False, True, "VALID", h_pool5, self.params.keep_prob)
-            h_fc7 = utils.conv_layer('fc7', [1, 1, 4096, 4096], [1, 1, 1, 1], True, False, True, "VALID", h_fc6, self.params.keep_prob)
-            h_score_fr = utils.conv_layer('score_fr', [1, 1, 4096, self.params.num_labels], [1, 1, 1, 1], False, False, False, "VALID", h_fc7)
+            # TODO: how gradient is calculated
+            self.y_probability = tf.py_func(self.batch_rgb_to_probability, [self.y], tf.float32)
+
+            # padding input by 100
+            # https://github.com/shelhamer/fcn.berkeleyvision.org/edit/master/README.md#L72
+            # https://github.com/shelhamer/fcn.berkeleyvision.org/blob/1305c7378a9f0ab44b2c936f4d60e4687e3d8743/voc-fcn32s/net.py#L28
+            self.padded_x = tf.pad(self.x, [[0, 0], [100, 100], [100, 100], [0, 0]], "CONSTANT")
+
+            self.h_conv1_1 = utils.conv_layer('conv1_1', [3, 3, 3, 64], [1, 1, 1, 1], True, False, False, "SAME",  self.padded_x)
+            self.h_conv1_2 = utils.conv_layer('conv1_2', [3, 3, 64, 64], [1, 1, 1, 1], True, False, False, "SAME", self.h_conv1_1)
+            self.h_pool1 = utils.max_pool_2x2('pool1', self.h_conv1_2)
+            self.h_conv2_1 = utils.conv_layer('conv2_1', [3, 3, 64, 128], [1, 1, 1, 1], True, False, False, "SAME", self.h_pool1)
+            self.h_conv2_2 = utils.conv_layer('conv2_2', [3, 3, 128, 128], [1, 1, 1, 1], True, False, False, "SAME", self.h_conv2_1)
+            self.h_pool2 = utils.max_pool_2x2('pool2', self.h_conv2_2)
+            self.h_conv3_1 = utils.conv_layer('conv3_1', [3, 3, 128, 256], [1, 1, 1, 1], True, False, False, "SAME", self.h_pool2)
+            self.h_conv3_2 = utils.conv_layer('conv3_2', [3, 3, 256, 256], [1, 1, 1, 1], True, False, False, "SAME", self.h_conv3_1)
+            self.h_conv3_3 = utils.conv_layer('conv3_3', [3, 3, 256, 256], [1, 1, 1, 1], True, False, False, "SAME", self.h_conv3_2)
+            self.h_pool3 = utils.max_pool_2x2('pool3', self.h_conv3_3)
+            self.h_conv4_1 = utils.conv_layer('conv4_1', [3, 3, 256, 512], [1, 1, 1, 1], True, False, False, "SAME", self.h_pool3)
+            self.h_conv4_2 = utils.conv_layer('conv4_2', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", self.h_conv4_1)
+            self.h_conv4_3 = utils.conv_layer('conv4_3', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", self.h_conv4_2)
+            self.h_pool4 = utils.max_pool_2x2('pool4', self.h_conv4_3)
+            self.h_conv5_1 = utils.conv_layer('conv5_1', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", self.h_pool4)
+            self.h_conv5_2 = utils.conv_layer('conv5_2', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", self.h_conv5_1)
+            self.h_conv5_3 = utils.conv_layer('conv5_3', [3, 3, 512, 512], [1, 1, 1, 1], True, False, False, "SAME", self.h_conv5_2)
+            self.h_pool5 = utils.max_pool_2x2('pool5', self.h_conv5_3)
+            self.h_fc6 = utils.conv_layer('fc6', [7, 7, 512, 4096], [1, 1, 1, 1], True, False, True, "VALID", self.h_pool5, self.params.keep_prob)
+            self.h_fc7 = utils.conv_layer('fc7', [1, 1, 4096, 4096], [1, 1, 1, 1], True, False, True, "VALID", self.h_fc6, self.params.keep_prob)
+            self.h_score_fr = utils.conv_layer('score_fr', [1, 1, 4096, self.params.num_labels], [1, 1, 1, 1], False, False, False, "VALID", self.h_fc7)
         with tf.variable_scope('decoder', reuse=self.reuse_variables):
             if self.params.model == "fcn32":
-                self.deconv = utils.deconv_layer('deconv', self.params.num_labels, 64, 32, h_score_fr)
+                self.deconv = utils.deconv_layer('deconv', self.params.num_labels, 64, 32, self.h_score_fr)
             elif self.params.model == "fcn16":
-                h_upscore2 = utils.deconv_layer('upscore2', self.params.num_labels, 4, 2, h_score_fr)
+                h_upscore2 = utils.deconv_layer('upscore2', self.params.num_labels, 4, 2, self.h_score_fr)
 
                 # pool4
-                h_score_pool4 = utils.conv_layer('score_pool4', [1, 1, 512, self.params.num_labels], [1, 1, 1, 1], True, False, False, "SAME", h_pool4)
+                h_score_pool4 = utils.conv_layer('score_pool4', [1, 1, 512, self.params.num_labels], [1, 1, 1, 1], True, False, False, "SAME", self.h_pool4)
                 h_score_pool4_cropped = utils.crop_tensor(h_score_pool4, tf.shape(h_upscore2)[1], tf.shape(h_upscore2)[2])
                 h_fuse_pool4 = h_upscore2 + h_score_pool4_cropped
 
@@ -140,16 +137,16 @@ class fcn(object):
                 self.deconv = utils.deconv_layer('deconv', self.params.num_labels, 32, 16, h_fuse_pool4)
 
             elif self.params.model == "fcn8":
-                h_upscore2 = utils.deconv_layer('upscore2', self.params.num_labels, 4, 2, h_score_fr)
+                h_upscore2 = utils.deconv_layer('upscore2', self.params.num_labels, 4, 2, self.h_score_fr)
 
                 # pool4
-                h_score_pool4 = utils.conv_layer('score_pool4', [1, 1, 512, self.params.num_labels], [1, 1, 1, 1], True, False, False, "SAME", h_pool4)
+                h_score_pool4 = utils.conv_layer('score_pool4', [1, 1, 512, self.params.num_labels], [1, 1, 1, 1], True, False, False, "SAME", self.h_pool4)
                 h_score_pool4_cropped = utils.crop_tensor(h_score_pool4, tf.shape(h_upscore2)[1], tf.shape(h_upscore2)[2])
                 h_fuse_pool4 = h_upscore2 + h_score_pool4_cropped
                 h_upscore_pool4 = utils.deconv_layer('upscore_pool4', self.params.num_labels, 4, 2, h_fuse_pool4)
 
                 # pool3
-                h_score_pool3 = utils.conv_layer('score_pool3', [1, 1, 256, self.params.num_labels], [1, 1, 1, 1], True, False, False, "SAME", h_pool3)
+                h_score_pool3 = utils.conv_layer('score_pool3', [1, 1, 256, self.params.num_labels], [1, 1, 1, 1], True, False, False, "SAME", self.h_pool3)
                 h_score_pool3_cropped = utils.crop_tensor(h_score_pool3, tf.shape(h_upscore_pool4)[1], tf.shape(h_upscore_pool4)[2])
                 h_fuse_pool3 = h_upscore_pool4 + h_score_pool3_cropped
 
@@ -213,20 +210,9 @@ class fcn(object):
         res = self.id_to_rgb[id_batch]
         return res.astype(dtype=np.float32)
 
-    # def initialize_weights(self, name):
-    #     if self.params.init_weights:
-    #         weights = np.load('vgg16_weights.npz')
-    #         return tf.constant_initializer(weights[name + '_W'])
-    #     return tf.contrib.layers.xavier_initializer()
-    #
-    # def initialize_biases(self, name):
-    #     if self.params.init_weights:
-    #         weights = np.load('vgg16_weights.npz')
-    #         return tf.constant_initializer(weights[name + '_b'])
-    #     return tf.constant(0.0)
-
-    def initialize_weights_op(self):
-        weights = np.load('vgg16_weights.npz')
+    @staticmethod
+    def initialize_weights_op(weights_file):
+        weights = np.load(weights_file)
         init_ops = list()
         init_ops.append(utils.assign_variable('encoder/conv1_1/weights', weights['conv1_1_W']))
         init_ops.append(utils.assign_variable('encoder/conv1_1/biases', weights['conv1_1_b']))
