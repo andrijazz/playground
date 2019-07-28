@@ -4,7 +4,24 @@ from collections import namedtuple
 import tensorflow as tf
 import numpy as np
 import vapk as utils
-import utils.common as common
+
+# constants
+TRAIN = "train"
+VAL = "val"
+TEST = "test"
+
+# model configuration
+fcn_parameters = namedtuple('parameters',
+                            'batch_size, '
+                            'data, '
+                            'image_height, '
+                            'image_width, '
+                            'labels,'
+                            'num_labels,'
+                            'keep_prob, '
+                            'learning_rate, '
+                            'model, '
+                            'type')
 
 
 def input_fn(instance_file, gt_file):
@@ -15,9 +32,9 @@ def input_fn(instance_file, gt_file):
     instance = tf.image.decode_png(instance_string, channels=3)
     gt = tf.image.decode_png(gt_string, channels=3)
 
-    # resize images (for instances we are using method=tf.image.ResizeMethod.BILINEAR
-    instance = tf.image.resize_images(instance, [256, 512])
-    gt = tf.image.resize_images(gt, [256, 512], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    # resize images (for instances we are using bilinear method)
+    instance = tf.image.resize_images(instance, [image_height, image_width], method=tf.image.ResizeMethod.BILINEAR)
+    gt = tf.image.resize_images(gt, [image_height, image_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
     # This will convert to float values in [0, 1]
     # image = tf.image.convert_image_dtype(image, tf.float32)
@@ -36,24 +53,19 @@ def preprocess_fn(image, label):
     return image, label
 
 
-fcn_parameters = namedtuple('parameters',
-                            'batch_size, '
-                            'data, '
-                            'image_height, '
-                            'image_width, '
-                            'labels,'
-                            'num_labels,'
-                            'keep_prob, '
-                            'learning_rate, '
-                            'model, '
-                            'type')
-
-
 class fcn(object):
     """fcn model"""
 
     def __init__(self, params, reuse_variables=None):
         self.params = params
+
+        # images height and width are global vars for model.py module
+        global image_height
+        global image_width
+
+        image_height = self.params.image_height
+        image_width = self.params.image_width
+
         self.reuse_variables = reuse_variables
         self.__build_input()
         self.__build_model()
@@ -66,14 +78,14 @@ class fcn(object):
             self.id_to_rgb[label.id] = label.color
 
     def __build_input(self):
-        if self.params.type == common.INFERENCE:
+        if self.params.type == TEST:
             # define model input
             with tf.variable_scope('input', reuse=self.reuse_variables):
                 self.x = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="x")  # [batch, in_height, in_width, in_channels]
                 self.y = tf.placeholder(tf.float32, shape=[None, self.params.image_height, self.params.image_width, 3], name="y")  # [batch, in_height, in_width, in_channels]
                 return
-        if self.params.type == common.TRAINING or self.params.type == common.EVAL:
-            self.dataset = tf.data.Dataset.from_tensor_slices((self.params.data.instances, self.params.data.ground_truth))
+        if self.params.type == TRAIN or self.params.type == VAL:
+            self.dataset = tf.data.Dataset.from_tensor_slices((self.params.data.instances, self.params.data.gt))
             self.dataset = self.dataset.shuffle(self.params.data.num_instances)
             self.dataset = self.dataset.map(input_fn, num_parallel_calls=4)
             # self.dataset = self.dataset.map(preprocess_fn, num_parallel_calls=4)

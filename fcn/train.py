@@ -2,24 +2,68 @@
 
 """
 TODO:
-* continue with training
 * new utils
 * metrics
 * Readme with results / playground readme about general guidelines
 * plot predict.py (overlay)
 * multiple gpu's
-* rename test to eval
 """
 
 from __future__ import division, absolute_import, print_function
 
 import argparse
 import json
+import os
 
-from fcn.settings import *
 from fcn.model import *
 from datasets.dataloader import *
 from utils.utils_n import *
+
+
+def init_dirs():
+    """
+    Makes sure that all dirs, files, args are in place.
+    :return:
+    """
+    # this is abs path of directory of this file
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # root dir is always parent dir to model files
+    root_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
+
+    # check if project root folder is in $PYTHONPATH
+    python_path_string = os.getenv('PYTHONPATH')
+    if root_dir not in python_path_string.split(':'):
+        exit("ROOT dir of the project is not in PYTHONPATH."
+             "Try adding following command in /etc/.profile file and restarting the computer after the changes: "
+             "PYTHONPATH=${PYTHONPATH}:<path_to_your_project>")
+
+    # model base name
+    args.name = "fcn"
+
+    # dataset dir
+    args.dataset_dir = os.path.join(args.data_drive, "datasets")
+
+    # create run_str
+    args.run = make_hparam_string(vars(args), ignored_keys=["name", "dataset_dir", "data_drive", "resume", "weights", "val_step", "save_step", "debug_steps"])
+
+    # log dir
+    args.log_dir = os.path.join(args.data_drive, "log", args.name, args.run)
+    if not os.path.exists(args.log_dir):
+        os.makedirs(args.log_dir)
+
+    # log file - commenting out since its handle inside logger
+    # config.log_file = os.path.join(config.log_dir, "{}.log".format(config.name))
+
+    # config files are always config.json
+    args.config_filename = os.path.join(args.log_dir, "config.json")
+
+    # checkpoint files are always named based on args.name
+    args.checkpoint_filename = os.path.join(args.log_dir, args.name)
+
+    # save configuration
+    with open(args.config_filename, 'w') as fp:
+        json.dump(vars(args), fp)
 
 
 def validate(sess, val_model, summary_writer, step):
@@ -28,34 +72,22 @@ def validate(sess, val_model, summary_writer, step):
         while True:
             summary_str = sess.run(val_model.summary_op)
             summary_writer.add_summary(summary_str, global_step=step)
-            break # just write one image from val
+            # just write one image from val
+            # delete this break in case you want validation on whole val set
+            break
     except tf.errors.OutOfRangeError:
         return
 
 
 def train(config):
-    # seeds
-    # seed = 5
-    # np.random.seed(seed)
-    # tf.set_random_seed(seed)
-
-    # dirs
-    run_str = make_hparam_string(vars(config), ignored_keys=["checkpoint", "weights", "log_on", "save_on", "debug"])
-    OUT_DIR = LOG_DIR + "/" + run_str
-    if not os.path.exists(OUT_DIR):
-        os.makedirs(OUT_DIR)
-
-    # save config
-    with open(OUT_DIR + "/" + CONFIG_FILENAME, 'w') as fp:
-        json.dump(vars(config), fp)
-
     # logger
-    logger = utils.get_logger(LOG_FILENAME, OUT_DIR)
+    # TODO: logger should take only log file as an arg and all (refactor) when removing vapk
+    logger = utils.get_logger(config.name, config.log_dir)
     logger.info("Things are good ... training")
     logger.info("Configuration = {}".format(config))
 
     # init datasets
-    train_set, val_set, _ = load(config.dataset, DATASET_DIR)
+    train_set, val_set, _ = load(config.dataset, config.dataset_dir)
 
     # init models
     train_model = fcn(
@@ -95,7 +127,7 @@ def train(config):
     sess = tf.Session(config=session_config)
 
     # init summaries
-    summary_writer = tf.summary.FileWriter(OUT_DIR)
+    summary_writer = tf.summary.FileWriter(config.log_dir)
     summary_writer.add_graph(sess.graph)
 
     # init saver
@@ -106,8 +138,8 @@ def train(config):
     sess.run(init_vars)
 
     # restore model
-    if config.checkpoint:
-        saver.restore(sess, config.checkpoint)
+    if config.resume:
+        saver.restore(sess, config.resume)
     else:
         # init weights only if we are not restoring the model and config.weights is set
         if config.weights:
@@ -122,53 +154,53 @@ def train(config):
             while True:
                 sess.run(train_model.train_op)
 
-                if step % config.log_on == 0:
-                    summary_str = sess.run(train_model.summary_op)
-                    summary_writer.add_summary(summary_str, global_step=step)
-                    validate(sess, val_model, summary_writer, step)
-
-                if step % config.save_on == 0:
-                    saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
-
                 # debug steps
-                if step <= config.debug:
+                if step <= config.debug_steps:
                     summary_str = sess.run(train_model.summary_op)
                     summary_writer.add_summary(summary_str, global_step=step)
                     validate(sess, val_model, summary_writer, step)
-                    saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
+                    saver.save(sess, config.checkpoint_filename, global_step=step)
+                else:
+                    if step % config.val_step == 0:
+                        summary_str = sess.run(train_model.summary_op)
+                        summary_writer.add_summary(summary_str, global_step=step)
+                        validate(sess, val_model, summary_writer, step)
+
+                    if step % config.save_step == 0:
+                        saver.save(sess, config.checkpoint_filename, global_step=step)
 
                 step += 1
 
         except tf.errors.OutOfRangeError:
-            logger.info("End of epoch. step = {}".format(step))
+            logger.info("End of epoch {} (step = {})".format(epoch, step))
 
-    saver.save(sess, OUT_DIR + "/" + MODEL_NAME, global_step=step)
+    saver.save(sess, config.checkpoint_filename, global_step=step)
 
     # clean up tf things
     sess.close()
     tf.reset_default_graph()
 
-    return run_str
-
 
 def main(_):
+    init_dirs()
     train(args)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Fully Convolutional Networks TensorFlow implementation [Training]')
-    parser.add_argument('--checkpoint', type=str, help='Checkpoint full path', required=True)
-    parser.add_argument('--model', type=str, help='Model type (fcn32, fcn16 or fcn8)', required=True)
-    parser.add_argument('--dataset', type=str, help='Dataset (kitti_semantics or cityscapes)', required=True)
+    parser.add_argument('--data_drive', type=str, help='Data drive', required=True)
+    parser.add_argument('--model', type=str, choices=["fcn32", "fcn16", "fcn8"], help='Model version', required=True)
+    parser.add_argument('--dataset', type=str, choices=["kitti_semantics", "cityscapes"], help='Dataset', required=True)
     parser.add_argument('--batch_size', type=int, help='Batch size', required=True)
     parser.add_argument('--num_epochs', type=int, help='Number of epochs', required=True)
-    parser.add_argument('--learning_rate', type=float, help='Learning rate', required=True)
-    parser.add_argument('--gpu', type=int, help='GPU to use for training', required=True)
-    parser.add_argument('--keep_prob', type=float, help='Dropout keep prob', required=True)
-    parser.add_argument('--weights', type=str, help='Path to file with pre-trained vgg-16 weights', required=True)
-    parser.add_argument('--save_on', type=int, help='Save model on x-th step', required=True)
-    parser.add_argument('--log_on', type=int, help='Log summaries on x-th step', required=True)
-    parser.add_argument('--debug', type=int, help='Number of debug steps', required=True)
-    args = parser.parse_args()
+    parser.add_argument('--learning_rate', type=float, help='Learning rate', default=1e-3)
+    parser.add_argument('--keep_prob', type=float, help='Dropout keep prob', default=0.5)
+    parser.add_argument('--resume', type=str, help='Checkpoint full path. Empty string if training from the beginning', default='')
+    parser.add_argument('--weights', type=str, help='Path to file with pre-trained vgg-16 weights', default='vgg16_weights.npz')
+    parser.add_argument('--gpu', type=int, help='GPU to use for training', default=0)
+    parser.add_argument('--debug_steps', type=int, help='Number of debug steps', default=10)
+    parser.add_argument('--save_step', type=int, help='Save model on every x-th step', default=1000)
+    parser.add_argument('--val_step', type=int, help='Validate model and log summaries on every x-th step', default=1000)
 
+    args = parser.parse_args()
     tf.app.run()

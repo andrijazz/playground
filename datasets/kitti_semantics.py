@@ -97,7 +97,7 @@ class KittiSemantics(object):
         self.ground_truth_path = ground_truth_path
 
         # data
-        self.instances, self.ground_truth = self.__initialize()
+        self.instances, self.gt = self.__initialize()
         self.num_instances = len(self.instances)
 
     def __initialize(self):
