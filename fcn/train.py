@@ -101,7 +101,7 @@ def train(config):
             keep_prob=config.keep_prob,
             learning_rate=config.learning_rate,
             model=config.model,
-            type=TRAINING
+            type=TRAIN
         ),
         reuse_variables=tf.AUTO_REUSE
     )
@@ -117,7 +117,7 @@ def train(config):
             keep_prob=config.keep_prob,
             learning_rate=config.learning_rate,
             model=config.model,
-            type=EVAL
+            type=VAL
         ),
         reuse_variables=tf.AUTO_REUSE
     )
