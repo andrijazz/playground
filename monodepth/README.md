@@ -1,7 +1,5 @@
 ## Monodepth
 
-### Results
-
 Input        | Disparity
 ------------ | -------------
 ![](https://github.com/andrijazz/playground/blob/master/docs/imgs/32_left.png) | ![](https://github.com/andrijazz/playground/blob/master/docs/imgs/32_disp.png)
