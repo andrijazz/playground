@@ -1,30 +1,27 @@
 [[source]]
-
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
-
 [dev-packages]
 
-
-
 [packages]
-
-numpy = "*"
-matplotlib = "*"
-scipy = "*"
-unicodecsv = "*"
-pandas = "*"
-seaborn = "*"
-sklearn = "*"
-imageio = "*"
-tensorflow-gpu = "==1.12.0"
-tqdm = "*"
-vapk = {git = "https://github.com/andrijazz/vapk.git", editable = true}
-opencv-python = "*"
-
+scikit-learn = "==0.23.1"
+future = "==0.18.2"
+tqdm = "==4.46.1"
+torch = "==1.4.0"
+torchvision = "==0.5.0"
+wandb = "==0.9.1"
+easydict = "==1.9"
+tensorboard = "==2.2.2"
+tensorflow = "==1.15.0"
+ray = {extras = ["tune"], version = "==0.8.6"}
+azure-cli = "==2.8.0"
+azure-core = "==1.6.0"
+pandas = "==1.0.5"
 
 [requires]
+python_version = "3.6"
 
-python_version = "3.5"
+[pipenv]
+allow_prereleases = true
