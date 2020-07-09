@@ -1,6 +1,5 @@
 ## fcn
 
-* structuring tf project
 ```
 playground/
 ├── datasets                        # scripts for preparing datasets
