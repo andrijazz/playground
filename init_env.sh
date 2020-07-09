@@ -63,7 +63,4 @@ echo "export LOG=${LOG}" >> ~/.bashrc
 echo "export RAY_LOG=${RAY_LOG}" >> ~/.bashrc
 echo "export WANDB_API_KEY=${WANDB_API_KEY}" >> ~/.bashrc
 echo "export PYTHONPATH=\${SRC_ROOT}:\${PYTHONPATH}" >> ~/.bashrc
-
-# download MNIST dataset
-wget https://trendage.blob.core.windows.net/datasets/test.pt -P "${DATASETS}/MNIST/processed"
-wget https://trendage.blob.core.windows.net/datasets/training.pt -P "${DATASETS}/MNIST/processed"
+echo "export LD_LIBRARY_PATH=/home/${USER}/.mujoco/mujoco200/bin:${LD_LIBRARY_PATH}" >> ~/.bashrc
