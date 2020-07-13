@@ -51,4 +51,17 @@ LOG=${LOG}
 RAY_LOG=${RAY_LOG}
 WANDB_API_KEY=${WANDB_API_KEY}
 PYTHONPATH=\${SRC_ROOT}:\${PYTHONPATH}
-LD_LIBRARY_PATH=/home/${USER}/.mujoco/mujoco200/bin:\${LD_LIBRARY_PATH}" > "${ENV}"
+LD_LIBRARY_PATH=/home/${USER}/.mujoco/mujoco200/bin:${LD_LIBRARY}" > "${ENV}"
+
+# export - needed for ray cluster
+# echo "export SRC_ROOT=${PWD}" >> ~/.bashrc
+# echo "export PROJECT=${PROJECT}" >> ~/.bashrc
+# echo "export STORAGE=${STORAGE}" >> ~/.bashrc
+# echo "export PROJECT_STORAGE_ROOT=${PROJECT_STORAGE_ROOT}" >> ~/.bashrc
+# echo "export DATASETS=${DATASETS}" >> ~/.bashrc
+# echo "export MODELS=${MODELS}" >> ~/.bashrc
+# echo "export LOG=${LOG}" >> ~/.bashrc
+# echo "export RAY_LOG=${RAY_LOG}" >> ~/.bashrc
+# echo "export WANDB_API_KEY=${WANDB_API_KEY}" >> ~/.bashrc
+# echo "export PYTHONPATH=\${SRC_ROOT}:\${PYTHONPATH}" >> ~/.bashrc
+# echo "export LD_LIBRARY_PATH=/home/${USER}/.mujoco/mujoco200/bin:${LD_LIBRARY_PATH}" >> ~/.bashrc
