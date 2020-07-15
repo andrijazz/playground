@@ -1,19 +1,28 @@
+from __future__ import absolute_import, division
 
-class BasePolicy(object):
+from abc import ABCMeta, abstractmethod
+
+
+class BasePolicy(metaclass=ABCMeta):
     def __init__(self, **kwargs):
-       super(BasePolicy, self).__init__(**kwargs)
+        super(BasePolicy, self).__init__(**kwargs)
 
-    def build_graph(self):
-        raise NotImplementedError
+    @abstractmethod
+    def build_model(self):
+        pass
 
+    @abstractmethod
     def get_action(self, obs):
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def update(self, obs, acs):
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def save(self, filepath):
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def restore(self, filepath):
-        raise NotImplementedError
+        pass

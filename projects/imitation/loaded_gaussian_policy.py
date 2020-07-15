@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import tensorflow.compat.v1 as tf
 
-from .base_policy import BasePolicy
+from core.base_policy import BasePolicy
 
 
 class LoadedGaussianPolicy(BasePolicy):
@@ -21,9 +21,9 @@ class LoadedGaussianPolicy(BasePolicy):
 
         assert set(self.policy_params.keys()) == {'logstdevs_1_Da', 'hidden', 'obsnorm', 'out'}
 
-        self.build_graph()
+        self.build_model()
 
-    def build_graph(self):
+    def build_model(self):
         self.define_placeholders()
         self.define_forward_pass()
 
@@ -78,3 +78,8 @@ class LoadedGaussianPolicy(BasePolicy):
             observation = obs[None, :]
         return sess.run(self.output_bo, feed_dict={self.obs_bo: observation})
 
+    def save(self, filepath):
+        pass
+
+    def restore(self, filepath):
+        pass
