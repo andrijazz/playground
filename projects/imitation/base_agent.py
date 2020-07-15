@@ -9,12 +9,12 @@ class BaseAgent(metaclass=ABCMeta):
 
     @abstractmethod
     def train(self):
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def add_to_replay_buffer(self, paths):
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def sample(self, batch_size):
-        raise NotImplementedError
+        pass
