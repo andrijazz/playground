@@ -4,9 +4,8 @@ Behavioral cloning treats imitation learning as a supervised learning problem. T
 
 Here is the simple implementation of behavioral cloning agent applied on Mujoco env along with improvements using **DAgger**.
 
-<div style="text-align:center">
-![Behavioral cloning agent](https://github.com/andrijazz/playground/blob/master/projects/imitation/movie.gif)
-</div>
+
+  <img src="https://github.com/andrijazz/playground/blob/master/projects/imitation/movie.gif" width="256" height="256">
 
 ### References
 * https://github.com/berkeleydeeprlcourse/homework/tree/master/hw1
