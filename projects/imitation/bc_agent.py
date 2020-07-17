@@ -3,9 +3,12 @@ from projects.imitation.replay_buffer import ReplayBuffer
 from projects.imitation.mlp_policy import MLPPolicy
 
 
-class MLPAgent(BaseAgent):
+class BCAgent(BaseAgent):
+    """
+    Behavioral cloning agent
+    """
     def __init__(self, **kwargs):
-        super(MLPAgent, self).__init__(**kwargs)
+        super(BCAgent, self).__init__(**kwargs)
         self.actor = MLPPolicy()
         self.replay_buffer = ReplayBuffer()
 
