@@ -9,4 +9,4 @@ Here is the simple implementation of behavioral cloning agent applied on Mujoco 
 </p>
 
 ### References
-* https://github.com/berkeleydeeprlcourse/homework/tree/master/hw1
+* https://github.com/berkeleydeeprlcourse/homework_fall2019/tree/master/hw1
