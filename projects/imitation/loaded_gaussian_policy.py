@@ -76,7 +76,8 @@ class LoadedGaussianPolicy(BasePolicy):
             observation = obs
         else:
             observation = obs[None, :]
-        return sess.run(self.output_bo, feed_dict={self.obs_bo: observation})
+        action = sess.run(self.output_bo, feed_dict={self.obs_bo: observation})
+        return action.reshape(-1)
 
     def save(self, filepath):
         pass

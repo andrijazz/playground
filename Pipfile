@@ -20,6 +20,7 @@ azure-core = "==1.6.0"
 pandas = "==1.0.5"
 mujoco-py = "==2.0.2.10"
 gym = {extras = ["atari", "box2d", "classic_control"], version = "==0.17.2"}
+imageio-ffmpeg = "*"
 
 [requires]
 python_version = "3.6"

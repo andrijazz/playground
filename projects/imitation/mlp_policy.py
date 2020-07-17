@@ -41,7 +41,7 @@ class MLPPolicy(BasePolicy):
         inputs = inputs.reshape(1, inputs.shape[0]).float()
         # forward
         outputs = self.net(inputs)
-        return outputs.detach().numpy()
+        return outputs.detach().numpy().reshape(-1)
 
     def update(self, inputs, targets):
         inputs = torch.from_numpy(inputs).float()
