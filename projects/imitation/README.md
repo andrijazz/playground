@@ -1,6 +1,6 @@
 ## Behavioral cloning
 
-Behavioral cloning treats imitation learning as a supervised learning problem - it learns to map actions to states. 
+Behavioral cloning treats imitation learning as a supervised learning problem - it learns to map states to actions. 
 
 Here is the simple implementation of behavioral cloning agent applied on Mujoco env along with improvements using **DAgger**.
 
