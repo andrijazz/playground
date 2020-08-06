@@ -1,0 +1,43 @@
+config:
+    # choose tf or torch
+    FRAMEWORK: torch
+    # net
+    NET: "MLPNet"
+    # model
+    MODEL: "MLPModel"
+    # gpu
+    GPU: 0
+    # hidden layers
+    HIDDEN_LAYERS: [111, 64, 64, 8]
+    # activation function
+    HIDDEN_ACTIVATION: "tanh"
+    # summary freq
+    TRAIN_SUMMARY_FREQ: 500
+    # validation freq
+    TRAIN_VAL_FREQ: 1000
+    # start saving best val models after x epochs
+    TRAIN_START_SAVING_AFTER_EPOCH: 1
+    # train batch size
+    TRAIN_BATCH_SIZE: 20
+    # Number of epochs
+    TRAIN_NUM_EPOCHS: 3
+    # Restore from wandb or local
+    TRAIN_RESTORE_STORAGE: 'local'
+    # Path to checkpoint from which to be restored
+    TRAIN_RESTORE_FILE: ''
+    # Learning rate
+    TRAIN_LR: 0.0001
+    # save checkpoint model frequency
+    TRAIN_SAVE_MODEL_FREQ: 5000
+    # L1 regularization parameter
+    TRAIN_L1: 0
+    # Validation batch size
+    VAL_BATCH_SIZE: 20
+    # Test batch size
+    TEST_BATCH_SIZE: 20
+    # Path to checkpoint from which to be restored
+    TEST_RESTORE_FILE: ""
+    # Restore from wandb or local
+    TEST_RESTORE_STORAGE: ""
+    # Dataset augmentations
+    TEST_DATASET_AUG: []

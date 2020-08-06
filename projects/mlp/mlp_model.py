@@ -117,15 +117,15 @@ class MLPModel(BaseModel):
                     self.net.train()
 
                 if step % self.config.TRAIN_SAVE_MODEL_FREQ == 0:
-                    self.save('model', step)
+                    self.save('checkpoint', step)
 
                 step += 1
 
         # restore best checkpoint state
         self.restore(best_checkpoint_info['checkpoint_file'], storage='local')
-        # upload to wandb with model_name as name
+        # save best model as {model_name}.pth and upload it to wandb if specified
         model_name = self.config.MODEL.lower()
-        self.save(model_name, best_checkpoint_info['step'], upload_to_wandb=True)
+        self.save(model_name, best_checkpoint_info['step'], upload_to_wandb=self.config.UPLOAD_BEST_TO_WANDB)
         return best_checkpoint_info['acc']
 
     def test(self):

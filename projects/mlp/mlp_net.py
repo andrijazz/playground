@@ -10,28 +10,27 @@ class MLPNet(nn.Module):
     def __init__(self, config):
         super(MLPNet, self).__init__()
         self.config = config
-
-        assert len(self.config.ARCH) >= 2    # mlp conf needs to have at least input dim and output dim
-        in_dim = self.config.ARCH[0]
+        # mlp conf needs to have at least input dim and output dim
+        assert len(self.config.HIDDEN_LAYERS) >= 2
+        in_dim = self.config.HIDDEN_LAYERS[0]
         layers = []
         prev_dim = in_dim
-        for i in range(1, len(self.config.ARCH)):
-            layers.append(nn.Linear(prev_dim, self.config.ARCH[i], bias=False))
+        n = len(self.config.HIDDEN_LAYERS)
+        for i in range(1, n - 1):
             # avoiding bias for simplicity sake
-            if i == len(self.config.ARCH) - 1 and self.config.ADD_OUTPUT_LAYER_ACTIVATION:
-                layers.append(activations[self.config.ACTIVATION])
-                break
-            layers.append(activations[self.config.ACTIVATION])
-            prev_dim = self.config.ARCH[i]
+            layers.append(nn.Linear(prev_dim, self.config.HIDDEN_LAYERS[i], bias=False))
+            layers.append(activations[self.config.HIDDEN_ACTIVATION])
+            prev_dim = self.config.HIDDEN_LAYERS[i]
+        layers.append(nn.Linear(prev_dim, self.config.HIDDEN_LAYERS[n - 1], bias=False))
         self.net = nn.Sequential(*layers)
 
     def forward(self, x):
-        l1_loss = self.l1()
-        # print(l1_loss/20)
-        return self.net(x) + l1_loss
+        if self.config.TRAIN_L1 > 0:
+            l1_loss = self.l1()
+            return self.net(x) + l1_loss
+        return self.net(x)
 
     def l1(self):
-        lmbd = self.config.TRAIN_L1
         l1_reg = None
         i = 0
         for W in self.parameters():
@@ -45,5 +44,5 @@ class MLPNet(nn.Module):
                 l1_reg = l1_reg + W.norm(1)
             i += 1
 
-        return lmbd * l1_reg
+        return self.config.TRAIN_L1 * l1_reg
 

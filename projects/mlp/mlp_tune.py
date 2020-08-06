@@ -15,8 +15,9 @@ def apply_tune_config(base_config, tune_cfg):
 
 
 def trial(config):
-    base_config = utils.get_config('projects.mlp.mlp_config')
-    base_config = apply_tune_config(base_config, config)
+    yml_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config', 'default_config.yml')
+    default_config = utils.get_config_yml(yml_config)
+    base_config = apply_tune_config(default_config, config)
     model = factory.create_model(base_config)
     acc = model.train()
     tune.report(mean_accuracy=acc)

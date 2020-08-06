@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division
-
+import os
 import copy
 
 import torch
@@ -22,7 +22,8 @@ class MLPPolicy(BasePolicy):
 
     def build_model(self):
         # construct the net
-        mlp_config = utils.get_config('projects.mlp.mlp_config')
+        yml_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config', 'imitation_config.yml')
+        mlp_config = utils.get_config_yml(yml_config)
         self.net = factory.create_net(mlp_config)
         params_to_update = self.net.parameters()
         self.optimizer = optim.Adam(params_to_update, lr=mlp_config.TRAIN_LR)
@@ -40,7 +41,7 @@ class MLPPolicy(BasePolicy):
         inputs = torch.from_numpy(inputs)
         inputs = inputs.reshape(1, inputs.shape[0]).float()
         # forward
-        outputs = self.net(inputs)
+        outputs = torch.tanh(self.net(inputs))
         return outputs.detach().numpy().reshape(-1)
 
     def update(self, inputs, targets):
@@ -49,7 +50,7 @@ class MLPPolicy(BasePolicy):
 
         self.optimizer.zero_grad()
         # forward
-        outputs = self.net(inputs)
+        outputs = torch.tanh(self.net(inputs))
         loss = self.criterion(outputs, targets)
         loss.backward()
         self.optimizer.step()
