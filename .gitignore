@@ -38,3 +38,6 @@ dispnet/dispflownet-release/
 *.blg
 *.run.xml
 
+
+# ignore .env file
+.env
