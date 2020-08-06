@@ -1,32 +1,30 @@
 #!/bin/bash
 
 # check if storage path is specified
-if [ "$#" -ne 2 ]; then
-  echo "Illegal number of arguments. Please specify project name and storage drive path"
+if [ "$#" -ne 3 ]; then
+  echo "Illegal number of arguments. Please specify project name, storage drive path and wandb api key"
   exit 1
 fi
 
+# args
 PROJECT=$1
 echo "PROJECT=${PROJECT}"
-
 STORAGE=$2
 echo "STORAGE=${STORAGE}"
+WANDB_API_KEY=$3
+echo "WANDB_API_KEY=${WANDB_API_KEY}"
 
+# generate vars
 PROJECT_STORAGE_ROOT="${STORAGE}/${PROJECT}"
 echo "PROJECT_STORAGE_ROOT=${PROJECT_STORAGE_ROOT}"
-
 SRC_ROOT=${PWD}
 echo "SRC_ROOT=${SRC_ROOT}"
-
 DATASETS="${PROJECT_STORAGE_ROOT}/datasets"
 echo "DATASETS=${DATASETS}"
-
 MODELS="${PROJECT_STORAGE_ROOT}/models"
 echo "MODELS=${MODELS}"
-
 LOG="${PROJECT_STORAGE_ROOT}/log"
 echo "LOG=${LOG}"
-
 RAY_LOG="${LOG}/ray"
 echo "RAY_LOG=${RAY_LOG}"
 
@@ -36,8 +34,6 @@ mkdir -p "${DATASETS}"
 mkdir -p "${MODELS}"
 mkdir -p "${LOG}"
 mkdir -p "${RAY_LOG}"
-
-WANDB_API_KEY="86a1f1c737e6d03143f1e8966e8fddf918f29266"
 
 # create .env file in project root and add vars to it
 ENV="${SRC_ROOT}/.env"
