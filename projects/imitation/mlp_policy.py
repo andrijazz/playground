@@ -8,7 +8,7 @@ import torch.optim as optim
 
 import core.factory as factory
 import core.utils as utils
-import projects.mlp.pth_utils as pth_utils
+import projects.utils.pth_utils as pth_utils
 from core.base_policy import BasePolicy
 
 

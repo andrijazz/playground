@@ -10,6 +10,7 @@ def save_model(model_dict, name, upload_to_wandb=False):
         torch.save(model_dict, checkpoint_file)
         if upload_to_wandb:
             wandb.save(model_name)
+        return checkpoint_file
 
 
 def restore_model(file, storage='local', encoding='utf-8'):
@@ -26,24 +27,6 @@ def restore_model(file, storage='local', encoding='utf-8'):
         checkpoint = None
 
     return checkpoint
-
-
-class AverageMeter(object):
-    """Computes and stores the average and current value"""
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
 
 
 def calc_sparsity_percentage(W, eps=1e-5):

@@ -1,0 +1,47 @@
+config:
+    # choose tf or torch
+    FRAMEWORK: tf
+    # net
+    NET: "FCNNet"
+    # model
+    MODEL: "FCNModel"
+    # gpu
+    GPU: 0
+    # train dataset
+    TRAIN_DATASET: "kitti"
+    # train dataset
+    DATASET_NUM_CLASSES: 29
+    # dataset augmentations
+    TRAIN_DATASET_AUG: []
+    # summary freq
+    TRAIN_SUMMARY_FREQ: 100
+    # validation freq
+    TRAIN_VAL_FREQ: 500
+    # save checkpoint model frequency
+    TRAIN_SAVE_MODEL_FREQ: 1000
+    # start saving best val models after x epochs
+    TRAIN_START_SAVING_AFTER_EPOCH: 3
+    # train batch size
+    TRAIN_BATCH_SIZE: 5
+    # number of epochs
+    TRAIN_NUM_EPOCHS: 10
+    # restore from wandb or local
+    TRAIN_RESTORE_STORAGE: "local"
+    # path to checkpoint from which to be restored
+    TRAIN_RESTORE_FILE: ""
+    # learning rate
+    TRAIN_LR: 0.0001
+    # upload best model weights to wandb
+    UPLOAD_BEST_TO_WANDB: false
+    # validation batch size
+    VAL_BATCH_SIZE: 5
+    # test batch size
+    TEST_BATCH_SIZE: 5
+    # path to checkpoint from which to be restored
+    TEST_RESTORE_FILE: ""
+    # restore from wandb or local
+    TEST_RESTORE_STORAGE: ""
+    # dataset for testing
+    TEST_DATASET: "KITTI"
+    # dataset augmentations
+    TEST_DATASET_AUG: []

@@ -147,28 +147,3 @@ class FlyingThings3D(object):
         file_batch, end_of_epoch = self.iter.next(batch_size)
         x_batch, y_batch = self.__load_samples(file_batch)
         return x_batch, y_batch, end_of_epoch
-
-
-# x_left = scipy.misc.imread("/mnt/datasets/flyingthings3d/FlyingThings3D_subset_image_clean/train/image_clean/left/0000000.png")
-# plt.imshow(x_left)
-# plt.show()
-#
-# x_right = scipy.misc.imread("/mnt/datasets/flyingthings3d/FlyingThings3D_subset_image_clean/train/image_clean/right/0000000.png")
-# plt.imshow(x_right)
-# plt.show()
-#
-# y_left, scale_y_left = readPFM("/mnt/datasets/flyingthings3d/FlyingThings3D_subset_disparity/train/disparity/left/0000000.pfm")
-# plt.imshow(y_left)
-# plt.show()
-#
-# y_right, scale_y_right = readPFM("/mnt/datasets/flyingthings3d/FlyingThings3D_subset_disparity/train/disparity/right/0000000.pfm")
-# plt.imshow(y_right)
-# plt.show()
-
-# dataset = FlyingThings3D(path_img_left="/mnt/datasets/flyingthings3d/FlyingThings3D_subset_image_clean/train/image_clean/left",
-#                          path_img_right="/mnt/datasets/flyingthings3d/FlyingThings3D_subset_image_clean/train/image_clean/right",
-#                          path_gt="/mnt/datasets/flyingthings3d/FlyingThings3D_subset_disparity/train/disparity/left")
-# m = len(dataset.file_pairs)
-# for i in range(5):
-#     x_batch, y_batch, eoe = dataset.load_batch(3)
-#     print(i)

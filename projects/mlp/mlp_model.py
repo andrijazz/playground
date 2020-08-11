@@ -10,7 +10,8 @@ import torch.optim as optim
 import wandb
 
 import core.factory as factory
-import projects.mlp.pth_utils as pth_utils
+import projects.utils.pth_utils as pth_utils
+import projects.utils.utils as utils
 from core.base_model import BaseModel
 from core.utils import accuracy, is_debug_session
 from projects.mlp.mlp_datasets import create_train_and_val_datasets, create_test_dataset
@@ -153,7 +154,7 @@ class MLPModel(BaseModel):
         wandb.log({'test/loss': loss, 'test/acc': acc})
 
     def _validate(self, criterion, val_loader, step, device):
-        loss_meter = pth_utils.AverageMeter()
+        loss_meter = utils.AverageMeter()
         p = []
         gt = []
         for samples in val_loader:
