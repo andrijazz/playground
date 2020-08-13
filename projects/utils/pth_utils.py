@@ -5,12 +5,12 @@ import os
 
 def save_model(model_dict, name, upload_to_wandb=False):
     with torch.no_grad():
-        model_name = '{}-{}.pth'.format(name, model_dict['step'])
-        checkpoint_file = os.path.join(wandb.run.dir, model_name)
-        torch.save(model_dict, checkpoint_file)
+        checkpoint_name = '{}-{}.pth'.format(name, model_dict['step'])
+        checkpoint_path = os.path.join(wandb.run.dir, checkpoint_name)
+        torch.save(model_dict, checkpoint_path)
         if upload_to_wandb:
-            wandb.save(model_name)
-        return checkpoint_file
+            wandb.save(checkpoint_name)
+        return checkpoint_path
 
 
 def restore_model(file, storage='local', encoding='utf-8'):

@@ -108,7 +108,7 @@ class MLPModel(BaseModel):
                     caption = 'Prediction: {}\nGround Truth: {}'.format(predicted_caption, gt_caption)
                     wandb.log({"train/samples": wandb.Image(inputs[sample_idx], caption=caption)}, step=step)
 
-                if step % self.config.TRAIN_VAL_FREQ == 0:
+                if self.config.TRAIN_VAL_FREQ != -1 and step % self.config.TRAIN_VAL_FREQ == 0:
                     self.net.eval()
                     val_loss, val_acc = self._validate(criterion, val_loader, step, device)
                     wandb.log({"val/loss": val_loss}, step=step)
@@ -119,17 +119,17 @@ class MLPModel(BaseModel):
                         best_checkpoint_info['acc'] = val_acc
                         best_checkpoint_info['step'] = step
                         checkpoint_file = self.save('val_checkpoint', step)
-                        best_checkpoint_info['checkpoint_file'] = checkpoint_file
+                        best_checkpoint_info['checkpoint'] = checkpoint_file
 
                     self.net.train()
 
-                if step % self.config.TRAIN_SAVE_MODEL_FREQ == 0:
+                if self.config.TRAIN_SAVE_MODEL_FREQ != -1 and step % self.config.TRAIN_SAVE_MODEL_FREQ == 0:
                     self.save('checkpoint', step)
 
                 step += 1
 
         # restore best checkpoint state
-        self.restore(best_checkpoint_info['checkpoint_file'], storage='local')
+        self.restore(best_checkpoint_info['checkpoint'], storage='local')
         # save best model as {model_name}.pth and upload it to wandb if specified
         model_name = self.config.MODEL.lower()
         self.save(model_name, best_checkpoint_info['step'], upload_to_wandb=True)

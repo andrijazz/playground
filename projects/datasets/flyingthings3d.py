@@ -8,8 +8,6 @@ import glob
 import scipy
 import numpy as np
 import scipy.misc
-import vapk as utils
-import matplotlib.pyplot as plt
 
 
 # read disparity data from .pfm file
@@ -103,7 +101,7 @@ class FlyingThings3D(object):
         # pairs
         self.__initialize()
         # iters
-        self.iter = utils.BatchIterator(self.file_pairs)
+        # self.iter = utils.BatchIterator(self.file_pairs)
 
     def __initialize(self):
         left_images = glob.glob(os.path.join(self.path_img_left, '*.png'))

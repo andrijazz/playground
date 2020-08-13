@@ -7,11 +7,20 @@ import tensorflow as tf
 import wandb
 
 import core.factory as factory
+
+from projects.fcn.fcn_datasets import FCNDataset
+import projects.utils.utils as utils
 from core.base_model import BaseModel
 from core.logger import get_logger
-from projects.fcn.fcn_datasets import create_train_and_val_datasets
+import projects.utils.tf_utils as tf_utils
+from projects.utils.metrics import micro_iou
 
 logger = get_logger()
+
+# enable dryrun to turn of wandb syncing completely
+# os.environ['WANDB_MODE'] = 'dryrun'
+# prevent wandb syncing checkpoints except best model results
+os.environ['WANDB_IGNORE_GLOBS'] = 'val_checkpoint*,checkpoint*'
 
 
 class FCNModel(BaseModel):
@@ -20,6 +29,9 @@ class FCNModel(BaseModel):
     """
     def __init__(self, config):
         super().__init__(config)
+
+        # construct the dataset
+        self.dataset = FCNDataset(self.config.TRAIN_DATASET)
 
         # construct the model
         self.net = factory.create_net(self.config)
@@ -36,12 +48,12 @@ class FCNModel(BaseModel):
         else:
             print('Unknown storage type')
 
-    def save(self, filename, step, upload_to_wandb=False):
-        model_name = '{}-{}'.format(filename, step)
-        checkpoint_file = os.path.join(wandb.run.dir, model_name)
+    def save(self, checkpoint_name, step, upload_to_wandb=False):
+        checkpoint = os.path.join(wandb.run.dir, '{}-{}'.format(checkpoint_name, step))
+        self.net.save_weights(checkpoint)
         if upload_to_wandb:
-            wandb.save(model_name)
-        self.net.save_weights(checkpoint_file)
+            wandb.save(checkpoint)
+        return checkpoint
 
     def train(self):
         wandb.init(project=os.getenv('PROJECT'), dir=os.getenv('LOG'), config=self.config, reinit=True)
@@ -49,22 +61,29 @@ class FCNModel(BaseModel):
         if self.config.TRAIN_RESTORE_FILE:
             self.restore(self.config.TRAIN_RESTORE_FILE, self.config.TRAIN_RESTORE_STORAGE)
 
-        train_dataset = create_train_and_val_datasets(self.config.TRAIN_DATASET)
-        train_dataset = train_dataset.shuffle(len(list(train_dataset)))
+        train_dataset, val_dataset = self.dataset.create_train_and_val_datasets()
+        train_dataset_len = tf.data.experimental.cardinality(train_dataset).numpy()
+        val_dataset_len = tf.data.experimental.cardinality(val_dataset).numpy()
+
+        # log dataset sizes
+        logger.info('Training dataset size = {}'.format(train_dataset_len))
+        logger.info('Validation dataset size = {}'.format(val_dataset_len))
+
+        # shuffle datasets
+        train_dataset = train_dataset.shuffle(train_dataset_len)
         train_dataset = train_dataset.batch(self.config.TRAIN_BATCH_SIZE)
-        logger.info('Training dataset size = {}'.format(len(list(train_dataset))))
+        val_dataset = val_dataset.shuffle(val_dataset_len)
+        val_dataset = val_dataset.batch(self.config.VAL_BATCH_SIZE)
 
-        # val_dataset = val_dataset.shuffle(len(images))
-        # val_dataset = val_dataset.batch(self.config.TRAIN_BATCH_SIZE)
-        # logger.info('Validation dataset size = {}'.format(len(list(train_dataset))))
-
-        # Instantiate an optimizer.
+        # instantiate an optimizer.
         optimizer = tf.keras.optimizers.Adam(learning_rate=self.config.TRAIN_LR)
-        # Instantiate a loss function.
+
+        # instantiate a loss function.
         loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         step = 0
 
-        best_checkpoint_info = {'step': step, 'loss': np.inf, 'acc': 0}
+        # init best checkpoint info
+        best_checkpoint_info = {'step': step, 'loss': np.inf, 'iou': 0, 'checkpoint': ''}
 
         for epoch in range(self.config.TRAIN_NUM_EPOCHS):
 
@@ -95,97 +114,106 @@ class FCNModel(BaseModel):
                 optimizer.apply_gradients(zip(grads, self.net.trainable_weights))
 
                 if step % self.config.TRAIN_SUMMARY_FREQ == 0:
+                    argmax_logits = tf.argmax(logits, axis=-1)
+                    rgb_batch = tf_utils.idx_to_rgb_batch_tf(argmax_logits, self.dataset.idx_to_color)
+
                     # log scalars
                     wandb.log({"train/loss": loss_value}, step=step)
 
                     # log images
-                    wandb.log({"train/image": wandb.Image(x_batch_train[0])}, step=step)
-                    wandb.log({"train/gt_image": wandb.Image(y_batch_train[0])}, step=step)
-                    # wandb.log({"train/y_pred": wandb.Image(y_batch_train[0])}, step=step)
+                    # current batch_size
+                    batch_size = x_batch_train.shape[0]
+                    # choose random image in a batch
+                    idx = np.random.choice(batch_size)
+                    image = x_batch_train[idx]
+                    gt_image = y_batch_train[idx]
+                    y_pred = rgb_batch[idx]
+                    wandb.log({"train/image": wandb.Image(image)}, step=step)
+                    wandb.log({"train/gt_image": wandb.Image(gt_image)}, step=step)
+                    wandb.log({"train/y_pred": wandb.Image(y_pred)}, step=step)
 
-                if step % self.config.TRAIN_VAL_FREQ == 0:
-                    pass
-                    # self.net.eval()
-                    # val_loss, val_acc = self._validate(criterion, val_loader, step, device)
-                    # wandb.log({"val/loss": val_loss}, step=step)
-                    # wandb.log({"val/accuracy": val_acc}, step=step)
-                    #
-                    # if val_acc > best_checkpoint_info['acc'] and epoch > self.config.TRAIN_START_SAVING_AFTER_EPOCH:
-                    #     best_checkpoint_info['loss'] = val_loss
-                    #     best_checkpoint_info['acc'] = val_acc
-                    #     best_checkpoint_info['step'] = step
-                    #     checkpoint_file = self.save('model', step)
-                    #     best_checkpoint_info['checkpoint_file'] = checkpoint_file
-                    #
-                    # self.net.train()
+                if self.config.TRAIN_VAL_FREQ != -1 and step % self.config.TRAIN_VAL_FREQ == 0:
+                    val_loss, val_iou = self._validate(val_dataset, loss_fn, step)
+                    # log scalars
+                    wandb.log({"val/loss": val_loss}, step=step)
+                    wandb.log({"val/iou": val_iou}, step=step)
 
-                if step % self.config.TRAIN_SAVE_MODEL_FREQ == 0:
-                    pass
-                    # self.save('checkpoint', step)
+                    # if val_loss > best_checkpoint_info['loss'] and epoch > self.config.TRAIN_START_SAVING_AFTER_EPOCH:
+                    best_checkpoint_info['loss'] = val_loss
+                    best_checkpoint_info['iou'] = val_iou
+                    best_checkpoint_info['step'] = step
+                    checkpoint = self.save('val_checkpoint', step, upload_to_wandb=False)
+                    best_checkpoint_info['checkpoint'] = checkpoint
+
+                if self.config.TRAIN_SAVE_MODEL_FREQ != -1 and step % self.config.TRAIN_SAVE_MODEL_FREQ == 0:
+                    self.save('checkpoint', step)
 
                 step += 1
 
         # # restore best checkpoint state
-        # self.restore(best_checkpoint_info['checkpoint_file'], storage='local')
-        # # save best model as {model_name}.pth and upload it to wandb if specified
-        # model_name = self.config.MODEL.lower()
-        # self.save(model_name, best_checkpoint_info['step'], upload_to_wandb=self.config.UPLOAD_BEST_TO_WANDB)
-        # return best_checkpoint_info['acc']
+        self.restore(best_checkpoint_info['checkpoint'], storage='local')
+        # save best model as {model_name} and upload it to wandb if specified
+        model_name = self.config.MODEL.lower()
+        self.save(model_name, best_checkpoint_info['step'])
+        return best_checkpoint_info['iou']
 
     def test(self):
         pass
-        # wandb.init(project=os.getenv('PROJECT'), dir=os.getenv('LOG'), config=self.config, reinit=True)
-        #
-        # if self.config.TEST_RESTORE_FILE:
-        #     self.restore(self.config.TEST_RESTORE_FILE, self.config.TEST_RESTORE_STORAGE)
-        #
-        # kwargs = {'num_workers': 8, 'pin_memory': True} \
-        #     if torch.cuda.is_available() and not is_debug_session() else {}
-        #
-        # dataset = create_test_dataset(self.config.TEST_DATASET)
-        #
-        # test_loader = torch.utils.data.DataLoader(dataset,
-        #                                           batch_size=self.config.TEST_BATCH_SIZE,
-        #                                           shuffle=False,
-        #                                           **kwargs)
-        # criterion = nn.CrossEntropyLoss()
-        # device = self.config.GPU
-        # self.net = self.net.to(device)
-        # num_of_params = sum(p.numel() for p in self.net.parameters() if p.requires_grad)
-        # print('Total number of parameters is {}'.format(num_of_params))
-        # self.net.eval()
-        # loss, acc = self._validate(criterion, test_loader, 0, device)
-        # wandb.log({'test/loss': loss, 'test/acc': acc})
 
-    def _validate(self, criterion, val_loader, step, device):
-        pass
-        # loss_meter = pth_utils.AverageMeter()
-        # p = []
-        # gt = []
-        # for samples in val_loader:
-        #     inputs = samples[0]
-        #     batch_size = inputs.shape[0]
-        #     in_dim = inputs.shape[2] * inputs.shape[3]
-        #     inputs_vec = inputs.reshape((batch_size, in_dim))
-        #     labels = samples[1]
-        #     inputs_vec = inputs_vec.to(device)
-        #     labels = labels.to(device)
-        #
-        #     # forward
-        #     outputs = self.net(inputs_vec)
-        #     loss = criterion(outputs, labels)
-        #
-        #     probability_outputs = torch.softmax(outputs, dim=1)
-        #     predicted_classes = torch.argmax(probability_outputs, dim=1)
-        #     p.extend(predicted_classes.tolist())
-        #     gt.extend(labels.tolist())
-        #     loss_meter.update(loss.item(), batch_size)
-        #
-        # p = np.array(p, dtype=np.int)
-        # gt = np.array(gt, dtype=np.int)
-        # acc = accuracy(p, gt)
-        # val_loss = loss_meter.avg
-        # return val_loss, acc
+    def _validate(self, val_dataset, loss_fn, step):
+        iou_meter = utils.AverageMeter()
+        loss_meter = utils.AverageMeter()
+        log_image = True
+        for (x_batch_val, y_batch_val, y_batch_val_idx) in val_dataset:
+            logits = self.net(x_batch_val, training=True)
 
-    def inference(self):
-        pass
+            # Compute the loss value for this minibatch.
+            loss_value = loss_fn(y_batch_val_idx, logits)
+
+            argmax_logits = tf.argmax(logits, axis=-1)
+            batch_size = x_batch_val.shape[0]
+
+            # log image
+            if log_image:
+                rgb_batch = tf_utils.idx_to_rgb_batch_tf(argmax_logits, self.dataset.idx_to_color)
+
+                # choose random image in a batch
+                idx = np.random.choice(batch_size)
+                image = x_batch_val[idx]
+                gt_image = y_batch_val[idx]
+                y_pred = rgb_batch[idx]
+                wandb.log({"val/image": wandb.Image(image)}, step=step)
+                wandb.log({"val/gt_image": wandb.Image(gt_image)}, step=step)
+                wandb.log({"val/y_pred": wandb.Image(y_pred)}, step=step)
+                log_image = False
+
+            loss_meter.update(loss_value, batch_size)
+            # iou_per_class = micro_iou(rgb_batch, y_batch_val, kitti.idx_to_color)
+            # iou = np.mean(iou_per_class)
+            # iou_meter.update(iou, batch_size)
+
+        val_loss = loss_meter.avg
+        val_iou = iou_meter.avg
+        return val_loss, val_iou
+
+    def inference(self, x):
+        if len(x.shape) == 3:  # single image
+            h = x.shape[0]
+            w = x.shape[1]
+            ch = x.shape[2]
+            # reshape to batch (1, h, w, ch)
+            x = tf.reshape(x, [-1, h, w, ch])
+            logits = self.net.call(x)
+            x = tf.argmax(logits, axis=-1)
+            # reshape back to single image
+            x = x[0]
+            x = tf_utils.idx_to_rgb_tf(x, self.dataset.idx_to_color)
+            return x
+        elif len(x.shape) == 4:  # batch
+            logits = self.net.call(x)
+            x = tf.argmax(logits, axis=-1)
+            x = tf_utils.idx_to_rgb_batch_tf(x, self.dataset.idx_to_color)
+            return x
+        else:
+            exit('Unsupported tensor shape for fcn inference')
+

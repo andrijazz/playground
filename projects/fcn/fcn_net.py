@@ -1,4 +1,3 @@
-import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Conv2D, MaxPool2D, Dropout, Conv2DTranspose, Cropping2D, Add
 
@@ -7,7 +6,7 @@ class FCNNet(Model):
     def __init__(self, config):
         super(FCNNet, self).__init__()
         self.config = config
-        self.num_classes = self.config.DATASET_NUM_CLASSES
+        self.num_classes = self.config.NUM_CLASSES
         # pad image 100
         # https://github.com/shelhamer/fcn.berkeleyvision.org/blob/1305c7378a9f0ab44b2c936f4d60e4687e3d8743/voc-fcn32s/net.py#L28
         # vgg encoder
@@ -91,6 +90,3 @@ class FCNNet(Model):
         cropped_x = Cropping2D(((crop_h, crop_h), (crop_w, crop_w)))(x)
         return cropped_x
 
-    def get_prediction(self, x):
-        output = self.call(x)
-        idx_output = tf.argmax(output, axis=-1)

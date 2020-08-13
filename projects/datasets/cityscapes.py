@@ -6,7 +6,6 @@ import os
 import scipy
 import numpy as np
 import scipy.misc
-import vapk as utils
 
 from pathlib import Path
 
