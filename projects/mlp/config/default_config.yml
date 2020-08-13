@@ -35,8 +35,6 @@ config:
     TRAIN_LR: 0.0001
     # l1 regularization parameter
     TRAIN_L1: 0
-    # upload best model weights to wandb
-    UPLOAD_BEST_TO_WANDB: false
     # validation batch size
     VAL_BATCH_SIZE: 20
     # test batch size

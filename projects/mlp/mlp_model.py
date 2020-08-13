@@ -17,6 +17,12 @@ from core.utils import accuracy, is_debug_session
 from projects.mlp.mlp_datasets import create_train_and_val_datasets, create_test_dataset
 
 
+# enable dryrun to turn of wandb syncing completely
+# os.environ['WANDB_MODE'] = 'dryrun'
+# prevent wandb syncing checkpoints except best model results
+os.environ['WANDB_IGNORE_GLOBS'] = 'val_checkpoint*,checkpoint*'
+
+
 class MLPModel(BaseModel):
     """
     Model for mlp net
@@ -112,7 +118,7 @@ class MLPModel(BaseModel):
                         best_checkpoint_info['loss'] = val_loss
                         best_checkpoint_info['acc'] = val_acc
                         best_checkpoint_info['step'] = step
-                        checkpoint_file = self.save('model', step)
+                        checkpoint_file = self.save('val_checkpoint', step)
                         best_checkpoint_info['checkpoint_file'] = checkpoint_file
 
                     self.net.train()
@@ -126,7 +132,7 @@ class MLPModel(BaseModel):
         self.restore(best_checkpoint_info['checkpoint_file'], storage='local')
         # save best model as {model_name}.pth and upload it to wandb if specified
         model_name = self.config.MODEL.lower()
-        self.save(model_name, best_checkpoint_info['step'], upload_to_wandb=self.config.UPLOAD_BEST_TO_WANDB)
+        self.save(model_name, best_checkpoint_info['step'], upload_to_wandb=True)
         return best_checkpoint_info['acc']
 
     def test(self):
