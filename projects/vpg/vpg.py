@@ -1,11 +1,12 @@
 import argparse
 import os
-
+import random
 import gym
 import torch
 import torch.nn as nn
 import wandb
 import yaml
+import numpy as np
 from torch.optim import SGD
 
 # wandb
@@ -20,15 +21,22 @@ class ReplayBuffer:
     Replay buffer of trajectories
     """
     def __init__(self, max_size=10000):
+        # list of trajectories s, a, s', r, t
         self.buffer = list()
+        for i in range(max_size):
+            self.buffer.append([])
         self.max_size = max_size
         self.curr = 0
-        # s, a, s', r, t
-        pass
 
     def add(self, trajectory):
-        if len(self.buffer) > self.max_size:
-            pass
+        if self.curr >= self.max_size:
+             self.curr = 0
+        self.buffer[self.curr] = trajectory
+        self.curr += 1
+
+    def sample(self):
+        index = random.random(self.curr)
+        return self.buffer[index]
 
 
 class MLP(nn.Module):
@@ -57,26 +65,57 @@ class VPGPolicy:
         self.optimizer = SGD(self.net.parameters(), lr=self.config['lr'])
 
     def get_action(self, observation):
+        # convert to tensor
+        observation = torch.as_tensor(observation, dtype=torch.float)
         output = self.net(observation)
         action = torch.argmax(torch.softmax(output, dim=0))
-        return action
+        # convert to numpy array
+        return action.detach().numpy()
 
-    def update(self, observations, target_actions, rewards):
-        outputs = self.net(observations)
-        loss = self.criterion(outputs, target_actions)  # + rewards
+    def update(self, observations, actions, rewards):
+        # convert to tensors
+        observations = torch.as_tensor(observations, dtype=torch.float)
+        actions = torch.as_tensor(actions, dtype=torch.long)
+        rewards = torch.as_tensor(rewards, dtype=torch.float)
+
+        logits = self.net(observations)
+        J = torch.sum(rewards)
+        loss = self.criterion(logits, actions) * torch.sum(rewards)
 
         # take gradient step
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-
-        wandb.log({'loss': loss})
+        return J.item(), loss.item()
 
     def save(self, save_path):
         pass
 
     def restore(self, restore_path):
         pass
+
+
+def unpack_trajectories(trajectories):
+    s = list()
+    a = list()
+    s_p = list()
+    r = list()
+    d = list()
+    for trajectory in trajectories:
+        for t in trajectory:
+            s.append(t[0])
+            a.append(t[1])
+            s_p.append(t[2])
+            r.append(t[3])
+            d.append(int(t[4]))
+    s = np.stack(s, axis=0)
+    a = np.stack(a, axis=0)
+    s_p = np.stack(s_p, axis=0)
+    r = np.stack(r, axis=0)
+    d = np.stack(d, axis=0)
+
+    assert s.shape[0] == a.shape[0] # ...
+    return s, a, s_p, r, d
 
 
 def main(args):
@@ -100,20 +139,29 @@ def main(args):
     for i_episode in range(config['num_episodes']):
         observation = env.reset()
 
-        trajectory = ReplayBuffer()
         t = 0
+        trajectory = []
         while True:
             env.render()
             # sampling random action
             # action = env.action_space.sample()
-            action = pi.get_action(torch.as_tensor(observation, dtype=torch.float))
-            observation, reward, done, info = env.step(action.detach().numpy())
+            action = pi.get_action(observation)
+            observation_n, reward, done, info = env.step(action)
+            trajectory.append((observation, action, observation_n, reward, done))
+            observation = observation_n
             t += 1
             if done:
-                print("Episode finished after {} timesteps".format(t + 1))
-                print("Performing grad update")
-                # pi.update()
                 break
+
+        print("Episode finished after {} timesteps".format(t + 1))
+        print("Performing grad update")
+        observations, actions, observations_n, rewards, dones = unpack_trajectories([trajectory])
+        J, loss = pi.update(observations, actions, rewards)
+        wandb.log({
+            'J': J,
+            'loss': loss,
+            't': t
+        })
     env.close()
 
 

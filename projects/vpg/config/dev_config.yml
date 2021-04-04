@@ -4,7 +4,7 @@ config:
   # environment
   env: "CartPole-v0"
   # number of episodes
-  num_episodes: 100
+  num_episodes: 10000
   # mlp architecture (only hidden layers are specified)
   arch: ["64", "128", "64"]
   # learning rate
