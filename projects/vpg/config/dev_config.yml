@@ -3,16 +3,18 @@ config:
   model: "vpg"
   # environment
   env: "CartPole-v0"
-  # number of episodes
-  num_episodes: 10000
+  # total number of iterations
+  num_iterations: 100
   # mlp architecture (only hidden layers are specified)
-  arch: ["64", "128", "64"]
+  arch: ["64", "64"]
+  # mlp hidden layer activation
+  activation: "tanh"
   # learning rate
-  lr: 0.001
-  # batch size (number of sampled trajectories before update step)
-  n: 10
-  # discount factor gamma
-  gamma: 0.001
+  lr: 0.005
+  # batch size
+  batch_size: 1000
+  # discount gamma
+  gamma: 1.0
   # use reward to go
   reward_to_go: false
   # use baselines

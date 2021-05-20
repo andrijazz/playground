@@ -1,4 +1,5 @@
 import numpy as np
+import yaml
 
 
 class AverageMeter(object):
@@ -35,3 +36,13 @@ def rgb_to_idx(img, labels):
         coords = np.where(np.all(img == np.array(label.color), axis=2))
         idx[coords[0], coords[1]] = label.id
     return idx
+
+
+def load_config(yml_config_file):
+    try:
+        with open(yml_config_file) as file:
+            config = yaml.load(file, Loader=yaml.FullLoader)
+            return config['config']
+    except FileNotFoundError:
+        print('Config file {} not found'.format(yml_config_file))
+        exit(1)
