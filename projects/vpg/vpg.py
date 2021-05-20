@@ -209,13 +209,23 @@ class VPGPolicy:
 
         # convert to tensor
         observation = torch.as_tensor(observation, dtype=torch.float)
+<<<<<<< HEAD
         logit = self.net(observation)
         m = Categorical(logits=logit)
         action = m.sample()
         # greedy action
         # action = torch.argmax(torch.softmax(output, dim=0))
+=======
+        output = self.net(observation)
+        dist = torch.distributions.Categorical(logits=output)
+        # sample from policy
+        action = dist.sample()
+        # greedy action
+        # action = torch.argmax(torch.softmax(output, dim=0))
+
+>>>>>>> b03c3e45673477385b3bd689368a6f6ce90c401e
         # convert to numpy array
-        return action.detach().numpy()
+        return action.item()
 
     def update(self, observations, actions, u_rewards):
         if not self.net.training:
@@ -237,8 +247,15 @@ class VPGPolicy:
         q_values = torch.as_tensor(q_values, dtype=torch.float)
 
         logits = self.net(observations)
+<<<<<<< HEAD
         m = Categorical(logits=logits)
         loss = -torch.sum(m.log_prob(actions) * q_values)
+=======
+        # creates distribution by normalizing logits to sum to 1
+        dist = torch.distributions.Categorical(logits=logits)
+        J = torch.sum(rewards)
+        loss = -(dist.log_prob(actions) * torch.sum(rewards)).sum()
+>>>>>>> b03c3e45673477385b3bd689368a6f6ce90c401e
 
         # take gradient step
         self.optimizer.zero_grad()
