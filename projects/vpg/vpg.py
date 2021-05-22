@@ -21,6 +21,16 @@ import functools
 from typing import List
 
 
+# TODO
+# 1. baselines
+# 2. standardize advantage???
+# 3. calc return calc cumsum
+# 4. continuous action space
+# 5. write readme + doc what i have learned and experiments
+# 6. gae-lambda
+# 7. parallel rollouts
+
+
 def _discounted_return(rewards: List[float], gamma: float) -> List[float]:
     """
     Helper function
@@ -227,6 +237,9 @@ class VPGPolicy:
         else:
             q_values = np.concatenate([_discounted_return(r, gamma=self.config['gamma']) for r in u_rewards])
 
+        if self.config['baselines']:
+            advantages = None
+
         g = [np.sum(r) for r in u_rewards]
         g_avg = np.mean(g)
         g_max = np.max(g)
@@ -246,11 +259,14 @@ class VPGPolicy:
         self.optimizer.step()
         return g_avg, g_max, loss.item()
 
-    def save(self, save_path):
-        pass
+    def save(self, save_path, step):
+        with torch.no_grad():
+            model_name = '{}-{}.pth'.format(self.config['model'], step)
+            checkpoint_file = os.path.join(save_path, model_name)
+            torch.save(self.net.state_dict(), checkpoint_file)
 
     def restore(self, restore_path):
-        pass
+        self.net.load_state_dict(torch.load(restore_path))
 
 
 def train(args):
@@ -303,6 +319,9 @@ def train(args):
             'g_max': g_max,
             'loss': loss
         })
+
+        # save policy
+        pi.save(wandb.run.dir, i)
     env.close()
 
 
