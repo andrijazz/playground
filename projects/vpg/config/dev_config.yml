@@ -16,6 +16,6 @@ config:
   # discount gamma
   gamma: 1.0
   # use reward to go
-  reward_to_go: false
+  reward_to_go: true
   # use baselines
-  baselines: false
+  baselines: true

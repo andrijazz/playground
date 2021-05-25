@@ -1,14 +1,15 @@
 import argparse
 import os
 import random
+
 import gym
+import numpy as np
 import torch
 import torch.nn as nn
 import wandb
 import yaml
-import numpy as np
-from torch.optim import Adam
 from torch.distributions import Categorical
+from torch.optim import Adam
 
 # wandb
 # enable dryrun to turn off wandb syncing completely
@@ -16,48 +17,34 @@ from torch.distributions import Categorical
 # prevent wandb uploading pth to cloud
 os.environ['WANDB_IGNORE_GLOBS'] = '*.pth'
 
-from itertools import accumulate
-import functools
 from typing import List
 
 
 # TODO
 # 1. baselines
 # 2. standardize advantage???
-# 3. calc return calc cumsum
+# 3. calc return calc cumsum DONE
 # 4. continuous action space
 # 5. write readme + doc what i have learned and experiments
 # 6. gae-lambda
 # 7. parallel rollouts
+# 8. rgb states
+
+def discounted_return(rewards: List[float], gamma: float) -> List[float]:
+    g = 0.0
+    for t, r in enumerate(rewards):
+        g = g + (gamma ** t) * r
+
+    q = [g for _ in range(len(rewards))]
+    return q
 
 
-def _discounted_return(rewards: List[float], gamma: float) -> List[float]:
-    """
-    Helper function
-    Input: list of rewards {r_0, r_1, ..., r_t', ... r_T} from a single
-    rollout of length T
-    Output: list where each index t contains sum_{t'=0}^T gamma^t' r_{t'}
-    """
-
-    discounted_return = functools.reduce(
-        lambda ret, reward: ret * gamma + reward,
-        reversed(rewards),
-    )
-    return [discounted_return] * len(rewards)
-
-
-def _discounted_cumsum(rewards: List[float], gamma: float) -> List[float]:
-    """
-        Helper function which
-        - takes a list of rewards {r_0, r_1, ..., r_t', ... r_T},
-        - and returns a list where the entry in each index t' is
-          sum_{t'=t}^T gamma^(t'-t) * r_{t'}
-    """
-
-    return list(accumulate(
-        reversed(rewards),
-        lambda ret, reward: ret * gamma + reward,
-    ))[::-1]
+def discounted_cumsum(rewards: List[float], gamma: float) -> List[float]:
+    q = list()
+    for t in range(len(rewards)):
+        g = discounted_return(rewards[t:], gamma)
+        q.append(g[0])
+    return q
 
 
 def load_config(yml_config_file):
@@ -233,25 +220,39 @@ class VPGPolicy:
 
         # calculate q's
         if self.config['reward_to_go']:
-            q_values = np.concatenate([_discounted_cumsum(r, gamma=self.config['gamma']) for r in u_rewards])
+            q_values = np.concatenate([discounted_cumsum(r, gamma=self.config['gamma']) for r in u_rewards])
         else:
-            q_values = np.concatenate([_discounted_return(r, gamma=self.config['gamma']) for r in u_rewards])
-
-        if self.config['baselines']:
-            advantages = None
+            q_values = np.concatenate([discounted_return(r, gamma=self.config['gamma']) for r in u_rewards])
 
         g = [np.sum(r) for r in u_rewards]
         g_avg = np.mean(g)
         g_max = np.max(g)
 
+        if self.config['baselines']:
+            baseline = g_avg
+            q_values = q_values - np.full(q_values.shape, baseline)
+
         # convert to tensors
         observations = torch.as_tensor(observations, dtype=torch.float)
-        actions = torch.as_tensor(actions, dtype=torch.int8)
+        actions = torch.as_tensor(actions, dtype=torch.long)
         q_values = torch.as_tensor(q_values, dtype=torch.float)
 
         logits = self.net(observations)
+
+        # Note:
+        # Different way of implementing PG pseudo-loss is using cross-entropy loss.
+        # The important thing to note is that cross-entropy loss implicitly applies
+        # LogSoftmax + NLL loss which is equivalent to our formula except it its weighted
+        # by q_values. Therefore, when defining criterion its necessary to set reduction
+        # parameter to 'none', apply multiplying with q_values and then apply mean
+        # self.criterion = nn.CrossEntropyLoss(reduction='none')
+        # loss = torch.mean(self.criterion(input=logits, target=actions) * q_values)
+
+        # Note:
+        # In hw cs285 implementation the sum was used as a reduction instead of mean which is also ok
+        # https://github.com/cassidylaidlaw/cs285-homework/blob/9da6d05499168d3c46fad468da090d75da72bca1/hw2/cs285/policies/MLP_policy.py#L156
         m = Categorical(logits=logits)
-        loss = -torch.sum(m.log_prob(actions) * q_values)
+        loss = -torch.mean(m.log_prob(actions) * q_values)
 
         # take gradient step
         self.optimizer.zero_grad()
