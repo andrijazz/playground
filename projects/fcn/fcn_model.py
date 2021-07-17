@@ -8,7 +8,7 @@ import wandb
 
 import core.factory as factory
 
-from projects.fcn.fcn_datasets import FCNDataset
+from projects.fcn.datasets.fcn_datasets import FCNDataset
 import projects.utils.utils as utils
 from core.base_model import BaseModel
 from core.logger import get_logger

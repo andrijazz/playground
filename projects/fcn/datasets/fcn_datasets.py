@@ -1,7 +1,7 @@
 import os
 import tensorflow as tf
 import projects.utils.tf_utils as tf_utils
-import projects.datasets.kitti as kitti
+import projects.fcn.datasets.kitti as kitti
 
 
 class FCNDataset(object):
