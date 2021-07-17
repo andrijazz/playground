@@ -1,6 +1,18 @@
 ## Vanilla Policy Gradient algorithm
 
 Single file pytorch implementation of Reinforce (Vanilla Policy Gradient) algorithm along with reward-to-go and baseline improvements.
+
+
+### TODO
+
+- [x] Working version
+- [ ] Math doc 
+- [x] Reward-to-go
+- [ ] Baselines
+- [ ] Result graphs
+- [ ] Parallelize trajectory collection (ray) 
+- [ ] GAE-lambda
+
 <!--
 This [document]() describes the math behind the algorithm.
 Math behind the algorithm:
