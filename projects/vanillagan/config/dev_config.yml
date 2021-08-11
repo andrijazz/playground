@@ -1,0 +1,21 @@
+config:
+  # model name
+  model: "vanillagan"
+  # resolution
+  resolution: 32
+  # num epochs
+  num_epochs: 1000000
+  # discriminator learning rate
+  discriminator_lr: 0.025
+  # generator learning rate
+  generator_lr: 0.025
+  # dataset
+  dataset: 'cifar10'
+  # train batch size
+  train_batch_size: 100
+  # device
+  device: 'cuda'
+  # update generator after k steps
+  k: 2
+  # train log freq
+  train_log_freq: 100

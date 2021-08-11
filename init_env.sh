@@ -46,8 +46,9 @@ MODELS=${MODELS}
 LOG=${LOG}
 RAY_LOG=${RAY_LOG}
 WANDB_API_KEY=${WANDB_API_KEY}
-PYTHONPATH=\${SRC_ROOT}:\${PYTHONPATH}
-LD_LIBRARY_PATH=/home/${USER}/.mujoco/mujoco200/bin:${LD_LIBRARY}" > "${ENV}"
+PYTHONPATH=\${SRC_ROOT}:\${PYTHONPATH}" > "${ENV}"
+
+# LD_LIBRARY_PATH=/home/${USER}/.mujoco/mujoco200/bin:${LD_LIBRARY}" > "${ENV}"
 
 # export - needed for ray cluster
 # echo "export SRC_ROOT=${PWD}" >> ~/.bashrc

@@ -5,10 +5,12 @@ Single-file pytorch implementation of paper [Generative Adversarial Networks](ht
 ### TODO
 
 - [X] Math doc
-- [ ] Working version
+- [x] Working version
 - [ ] Evaluation - FID
 - [ ] Evaluation - Inception score
 - [ ] Results
+
+### Results
 
 ### References
 
