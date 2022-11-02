@@ -9,7 +9,7 @@ import torchvision
 import wandb
 from torch.utils.data import DataLoader
 from torchvision import transforms
-
+import tqdm
 from core.utils.utils import get_config_yml, is_debug_session
 
 
@@ -55,7 +55,7 @@ class Generator(nn.Module):
             ('h1', nn.Linear(self.hidden_dim, self.hidden_dim)),
             ('h1_act', nn.Sigmoid()),
             ('y', nn.Linear(self.hidden_dim, self.output_dim)),
-            ('y_act', nn.Tanh())
+            # ('y_act', nn.Tanh())
         ]
         self.net = nn.Sequential(OrderedDict(layers))
 
@@ -131,6 +131,10 @@ def train(config):
     if torch.cuda.is_available() and not is_debug_session():
         kwargs = {'num_workers': 2, 'pin_memory': True}
 
+    # NOTE: setting pin_memory to False to get rid of
+    # Warning: Leaking Caffe2 thread-pool after fork ... introduced in pytorch 1.9
+    # https://github.com/pytorch/pytorch/issues/57273
+    kwargs['pin_memory'] = False
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=config.get("train_batch_size"),
                                   drop_last=True,
@@ -138,8 +142,10 @@ def train(config):
                                   **kwargs)
 
     adversarial_criterion = nn.BCELoss()
-    d_optim = torch.optim.SGD(discriminator.parameters(), lr=config['discriminator_lr'])
-    g_optim = torch.optim.SGD(generator.parameters(), lr=config['generator_lr'])
+    d_optim = torch.optim.SGD(discriminator.parameters(), lr=config['discriminator_lr'], momentum=0.5)
+    g_optim = torch.optim.SGD(generator.parameters(), lr=config['generator_lr'], momentum=0.5)
+    # d_optim = torch.optim.Adam(discriminator.parameters(), lr=config['discriminator_lr'], betas=(0.5, 0.999))
+    # g_optim = torch.optim.Adam(generator.parameters(), lr=config['generator_lr'], betas=(0.5, 0.999))
 
     reals_gt = torch.ones((config['train_batch_size'], 1), device=config['device'])
     fakes_gt = torch.zeros((config['train_batch_size'], 1), device=config['device'])
@@ -150,60 +156,67 @@ def train(config):
 
     batch_size = config['train_batch_size']
     step = 0
+
     for epoch in range(config['num_epochs']):
-        for samples in train_dataloader:
-            reals = samples[0]
-            reals = reals.to(config['device'])
+        desc = f"{epoch}/{config['num_epochs']}e"
+        with tqdm.tqdm(total=len(train_dataloader), unit="batch", desc=desc, position=0, leave=True) as progress_bar:
+            for samples in train_dataloader:
+                reals = samples[0]
+                reals = reals.to(config['device'])
 
-            z = torch.rand((batch_size, generator.z_dim), device=config['device'])
-            fakes = generator(z)
+                z = torch.rand((batch_size, generator.z_dim), device=config['device'])
 
-            # discriminator loss
-            # reals log(D(x))
-            d_reals = discriminator(reals.reshape((batch_size, 3072)))
-            reals_score = adversarial_criterion(input=d_reals, target=reals_gt)
-            # Pay attention to .detach(). Thats because we want to update only discriminator parameters
-            # fakes log(1-D(G(z)))
-            d_fakes = discriminator(fakes.detach())
-            fakes_score = adversarial_criterion(input=d_fakes, target=fakes_gt)
-            d_loss = reals_score + fakes_score
+                d_optim.zero_grad()
 
-            # update discriminator
-            d_optim.zero_grad()
-            d_loss.backward()
-            d_optim.step()
+                # discriminator loss
+                # reals log(D(x))
+                d_reals = discriminator(reals.reshape((batch_size, 3072)))
+                reals_score = adversarial_criterion(input=d_reals, target=reals_gt)
 
-            log_dict = {
-                'reals_score': reals_score.item(),
-                'fakes_score': fakes_score.item(),
-                'd_loss': d_loss.item(),
-            }
+                # generate fakes
+                fakes = generator(z)
+                # Pay attention to .detach(). Thats because we want to update only discriminator parameters
+                # fakes log(1-D(G(z)))
+                d_fakes = discriminator(fakes.detach())
+                fakes_score = adversarial_criterion(input=d_fakes, target=fakes_gt)
+                d_loss = (reals_score + fakes_score) / 2
+                # update discriminator
+                d_loss.backward()
+                d_optim.step()
 
-            # every k-th step update generator
-            if step % config['k'] == 0:
-                # generator loss
-                d_fakes = discriminator(fakes)
-                g_loss = adversarial_criterion(input=d_fakes, target=reals_gt)
+                log_dict = {
+                    'reals_score': reals_score.item(),
+                    'fakes_score': fakes_score.item(),
+                    'd_loss': d_loss.item(),
+                }
 
-                # update generator
-                g_optim.zero_grad()
-                g_loss.backward()
-                g_optim.step()
+                # every k-th step update generator
+                if step % config['k'] == 0:
+                    g_optim.zero_grad()
 
-                log_dict['g_loss'] = g_loss.item()
+                    # generator loss
+                    d_fakes = discriminator(fakes)
+                    g_loss = adversarial_criterion(input=d_fakes, target=reals_gt)
 
-            if step % config['train_log_freq'] == 0:
-                # log fakes
-                images = fakes.view(batch_size, 3, config['resolution'], config['resolution'])
-                images.clamp_(-1, 1)
-                images.add_(1).div_(2)
-                grid_image = torchvision.utils.make_grid(images.detach().cpu(), nrow=10)
-                log_dict["fakes"] = wandb.Image(grid_image)
+                    # update generator
+                    g_loss.backward()
+                    g_optim.step()
 
-                # TODO calculate fid / inception score
-                wandb.log(log_dict)
+                    log_dict['g_loss'] = g_loss.item()
 
-            step += 1
+                if step % config['train_log_freq'] == 0:
+                    # log fakes
+                    images = fakes.view(batch_size, 3, config['resolution'], config['resolution'])
+                    images.clamp_(-1, 1)
+                    images.add_(1).div_(2)
+                    grid_image = torchvision.utils.make_grid(images.detach().cpu(), nrow=10)
+                    log_dict["fakes"] = wandb.Image(grid_image)
+
+                    # TODO calculate fid / inception score
+                    wandb.log(log_dict)
+
+                step += 1
+                progress_bar.update()
 
 
 def main(args):
