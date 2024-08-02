@@ -11,3 +11,4 @@ Project | Description
 [vpg](https://github.com/andrijazz/playground/tree/master/vpg) | Simple Vanilla Policy Gradient algorithm implementation
 [vanillagan](https://github.com/andrijazz/playground/tree/master/vanillagan) | Generative Adversarial Networks
 [ddpm](https://github.com/andrijazz/playground/tree/master/ddpm) | Diffusion Models
+[micrograd](https://github.com/andrijazz/playground/tree/master/micrograd) | Karpathy's micrograd
