@@ -1,0 +1,28 @@
+ray==2.5.1
+wandb==0.15.5
+accelerate==0.20.3
+
+# ml utils
+transformers==4.30.2
+einops==0.6.1
+torchgeometry==0.1.2
+pytorch-fid==0.3.0
+kornia==0.6.12
+
+# utils
+scikit-learn==1.2.2
+future==0.18.3
+flask==2.3.2
+requests==2.31.0
+matplotlib==3.7.1
+opencv-python==4.7.0.72
+imutils==0.5.4
+tqdm==4.65.0
+fastapi==0.97.0
+starlette==0.27.0
+streamlit==1.23.1
+yapf==0.40.1
+aiohttp==3.8.4
+imageio==2.31.1
+pandas==2.0.2
+protobuf==3.20.0
