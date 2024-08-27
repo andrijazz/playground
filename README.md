@@ -12,3 +12,4 @@ Project | Description
 [vanillagan](https://github.com/andrijazz/playground/tree/master/vanillagan) | Generative Adversarial Networks
 [ddpm](https://github.com/andrijazz/playground/tree/master/ddpm) | Diffusion Models
 [micrograd](https://github.com/andrijazz/playground/tree/master/micrograd) | Karpathy's micrograd
+[dqn](https://github.com/andrijazz/playground/tree/master/dqn) | Implementation of DQN algorithm for CartPole environment

@@ -35,7 +35,7 @@ class AzureUtils:
 
             dest_filename = os.path.basename(f)
             file_service.create_file_from_path(share_name, dest_dir, dest_filename, f, max_connections=4)
-            azure_file_path = os.path.join('https://trendage.file.core.windows.net', share_name, dest_dir, dest_filename)
+            azure_file_path = os.path.join('https://azurepath.file.core.windows.net', share_name, dest_dir, dest_filename)
             return azure_file_path
         except Exception as e:
             logger.error('Failed to upload file {} because of exception: {}.'.format(f, str(e)))
