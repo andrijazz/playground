@@ -2,8 +2,14 @@
 
 Single file pytorch implementation of Reinforce (Vanilla Policy Gradient) algorithm along with reward-to-go and baseline improvements.
 
+### Math
+$\pi_{\theta}(a|s)$ is the policy function that outputs the probability of taking action $a$ in state $s$ (neural network taking the state as an input and outputs the probability of each action).
 
-### TODO
+$p(s'|s, a)$ is the transition probability of going from state $s$ to state $s'$ by taking action $a$.
+
+$\tau = (s_1, a_1 ... s_T, a_T)$ is a trajectory.
+
+$p_{\theta}(s_1, a_1, ..., s_{T}, a_{T})$ is the trajectory probability distribution over sequence of states and actions.
 
 - [x] Working version
 - [ ] Math doc 
